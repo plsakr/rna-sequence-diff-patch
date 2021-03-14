@@ -1,6 +1,21 @@
 from queue import Queue
+import json
+
+with open('costs.json', 'r') as f:
+    default_costs = json.load(f)
+
+try:
+    with open('user_costs.json', 'r') as f:
+        user_costs = json.load(f)
+except (OSError, IOError) as e:
+    user_costs = default_costs
+    print('Could not find user costs file')
 
 
+def reload_user_costs():
+    global user_costs
+    with open('user_costs.json', 'r') as f:
+        user_costs = json.load(f)
 class Edge:
     def __init__(self, source, destination, operation):
         self.source = source
@@ -26,20 +41,21 @@ class Node:
         return str(self.value)
 
 
-def cost(char1, char2):
-    cost_insert = 1
-    cost_delete = 1
+def cost(char1, char2, userCosts=False):
+    global default_costs, user_costs
+
     if char1.lower() == char2.lower():
         cost_update = 0
     else:
-        cost_update = 1
+        cost_update = default_costs['update'][char1][char2] if not userCosts else user_costs['update'][char1][char2]
     return cost_update
 
 
-def min_cost(dp, i, j, str1, str2):
-    cost_insert = dp[i][j - 1].value + 1
-    cost_delete = dp[i - 1][j].value + 1
-    cost_update = dp[i - 1][j - 1].value + cost(str1[i - 1], str2[j - 1])
+def min_cost(dp, i, j, str1, str2, userCosts=False):
+    global default_costs
+    cost_insert = dp[i][j - 1].value + default_costs['insert']
+    cost_delete = dp[i - 1][j].value + default_costs['delete']
+    cost_update = dp[i - 1][j - 1].value + cost(str1[i - 1], str2[j - 1], userCosts)
 
     costs = [cost_insert, cost_delete, cost_update]
 
@@ -60,7 +76,7 @@ def min_cost(dp, i, j, str1, str2):
     return val, op_list
 
 
-def wagnerFisher(str1, str2):
+def wagnerFisher(str1, str2, userCosts=False):
     rows = len(str1) + 1
     cols = len(str2) + 1
 
@@ -87,7 +103,7 @@ def wagnerFisher(str1, str2):
 
     for i in range(1, rows):
         for j in range(1, cols):
-            val, operations = min_cost(dp, i, j, str1, str2)
+            val, operations = min_cost(dp, i, j, str1, str2, userCosts)
 
             current_node = Node(i - 1, j - 1, val)
 
@@ -259,8 +275,8 @@ def patching(es, str1, str2):
     return modified_str1
 
 
-str1 = 'GAGATAT'
-str2 = 'AGGCT'
+str1 = 'AGRGA'
+str2 = 'AGGGA'
 dp = wagnerFisher(str1, str2)
 print(dp)
 all_paths = create_paths(dp)
@@ -268,7 +284,7 @@ for path in all_paths:
     es = generate_es(path, str1, str2)
     print(es)
     print(patching(es, str1, str2))
-    print('REVERSING')
-    rev = generate_rev_es(es, str1, str2)
-    print(rev)
-    print(patching(rev, str2, str1))
+    # print('REVERSING')
+    # rev = generate_rev_es(es, str1, str2)
+    # print(rev)
+    # print(patching(rev, str2, str1))

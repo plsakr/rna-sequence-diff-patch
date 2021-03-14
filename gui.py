@@ -1,17 +1,17 @@
 import sys
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QApplication, QPushButton, QLineEdit, QTableWidget, QComboBox, QTableWidgetItem,
-                               QTabWidget, QLabel, QListWidget, QAbstractItemView, QFileDialog)
+                               QTabWidget, QLabel, QListWidget, QAbstractItemView, QFileDialog, QRadioButton)
 
 from PySide6.QtCore import QFile, QIODevice, Qt
 from PySide6.QtGui import QColor
-from StringEditDistance import wagnerFisher, create_paths, generate_es, patching, generate_rev_es
+from StringEditDistance import wagnerFisher, create_paths, generate_es, patching, generate_rev_es, reload_user_costs, user_costs
 import json
 
 ui_file_name = "mainwindow.ui"
 ui_table_name = "costtable.ui"
 
-nucleotides = ['A', 'U', 'C', 'G', 'R', 'M', 'S', 'V', 'G']
+nucleotides = ['A', 'G', 'C', 'U', 'R', 'M', 'S', 'V', 'N']
 
 sequence1 = ''
 sequence2 = ''
@@ -24,7 +24,15 @@ inverted = False
 
 edit_scripts = []
 
-default_update_costs = {}
+
+def validate_sequence(seq):
+    global nucleotides
+    for ch in seq:
+        if ch in nucleotides:
+            continue
+        else:
+            return False
+    return True
 
 
 def onSequence1Changed(eText):
@@ -33,7 +41,7 @@ def onSequence1Changed(eText):
     def on_change(val):
         global sequence1
         sequence1 = val
-        if len(sequence1) == 0:
+        if len(sequence1) == 0 or not(validate_sequence(val)):
             eText.setStyleSheet('QLineEdit{ border-width: 1px; border-style: solid; border-color:  red;}')
         else:
             eText.setStyleSheet('')
@@ -47,7 +55,7 @@ def onSequence2Changed(eText):
     def on_change(val):
         global sequence2
         sequence2 = val
-        if len(sequence2) == 0:
+        if len(sequence2) == 0 or not(validate_sequence(val)):
             eText.setStyleSheet('QLineEdit{ border-width: 1px; border-style: solid; border-color:  red;}')
         else:
             eText.setStyleSheet('')
@@ -56,14 +64,15 @@ def onSequence2Changed(eText):
 
 
 def on_combo_changed(table):
-    global nucleotides, default_update_costs
+    global nucleotides
 
     def on_change(ind):
         print('ana hon')
         if ind > 0:
             val = nucleotides[ind - 1]
-            scores = default_update_costs[val]
+            scores = user_costs['update'][val]
 
+            scores = list(scores.values())
             for i in range(9):
                 it = QTableWidgetItem(str(scores[i]))
                 table.setItem(i, 1, it)
@@ -76,17 +85,24 @@ def on_combo_changed(table):
 
 
 def on_table_edited(combo, table):
-    global nucleotides, default_update_costs
+    global nucleotides
 
     def on_change(row, col):
-        global nucleotides, default_update_costs
+        global nucleotides
         print(f'edited ({row},{col})')
         currentNucleotideFrom = combo.currentIndex() - 1
 
-        if currentNucleotideFrom > 0:
+        if currentNucleotideFrom >= 0:
+            print(user_costs)
             currentNuc = nucleotides[currentNucleotideFrom]
-            default_update_costs[currentNuc][row] = int(table.item(row, col).text())
-            print('DEFAULT COSTS UPDATED. NEW VALUE:', default_update_costs)
+            copy_costs = user_costs
+            copy_costs['update'][currentNuc][nucleotides[row]] = float(table.item(row, col).text())
+            with open('user_costs.json', 'w') as f:
+                json.dump(copy_costs, f)
+
+            reload_user_costs()
+            print(user_costs)
+            print('DEFAULT COSTS UPDATED. ')
 
     return on_change
 
@@ -106,9 +122,6 @@ def on_es_list_changed(es_label: QLabel, table: QTableWidget, btn_to_patch: QPus
         if ind >= 0:
             p = paths[ind]
 
-            btn_to_patch.setEnabled(True)
-            btn_export.setEnabled(True)
-
             for n in p:
                 i = n.i + 1
                 j = n.j + 1
@@ -117,6 +130,11 @@ def on_es_list_changed(es_label: QLabel, table: QTableWidget, btn_to_patch: QPus
 
             current_path = p
             es = generate_es(p, sequence1, sequence2)
+
+            if len(es) != 0:
+                btn_to_patch.setEnabled(True)
+                btn_export.setEnabled(True)
+
             es_label.setText(str(es))
 
         if ind < 0:
@@ -126,7 +144,7 @@ def on_es_list_changed(es_label: QLabel, table: QTableWidget, btn_to_patch: QPus
     return on_change
 
 
-def onTabChanged(table: QTableWidget, l_cost: QLabel, l_sim: QLabel, es_list: QListWidget, label_t: QLabel,
+def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_sim: QLabel, es_list: QListWidget, label_t: QLabel,
                  label_chosen_es: QLabel, line_patch_input: QLineEdit, button_start_patch: QPushButton):
     global sequence1, sequence2, dp, paths, es
 
@@ -145,7 +163,8 @@ def onTabChanged(table: QTableWidget, l_cost: QLabel, l_sim: QLabel, es_list: QL
             table.verticalHeader().setStyleSheet('* {font-weight: bold;}')
 
             # DO WAGNER FISHER
-            dp = wagnerFisher(sequence1, sequence2)
+            is_user_cost = rButton.isChecked()
+            dp = wagnerFisher(sequence1, sequence2, is_user_cost)
 
             for i in range(len(sequence1) + 1):
                 for j in range(len(sequence2) + 1):
@@ -186,13 +205,13 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget):
 
     def on_click():
         global sequence1, sequence2
-        if len(sequence1) == 0 or len(sequence2) == 0:
+        if len(sequence1) == 0 or len(sequence2) == 0 or not(validate_sequence(sequence1)) or not(validate_sequence(sequence2)):
             print('ERROR FOUND: SEQUENCES NOT VALID')
-            if len(sequence1) == 0:
+            if len(sequence1) == 0 or not(validate_sequence(sequence1)):
                 eText1.setStyleSheet('QLineEdit{ border-width: 1px; border-style: solid; border-color:  red;}')
             else:
                 eText1.setStyleSheet('')
-            if len(sequence2) == 0:
+            if len(sequence2) == 0 or not(validate_sequence(sequence2)):
                 eText2.setStyleSheet('QLineEdit{ border-width: 1px; border-style: solid; border-color:  red;}')
             else:
                 eText2.setStyleSheet('')
@@ -357,6 +376,7 @@ if __name__ == "__main__":
     edit_cost_ins = window.findChild(QLineEdit, 'edit_cost_insert')
     edit_cost_del = window.findChild(QLineEdit, 'edit_cost_delete')
     btn_table = window.findChild(QPushButton, 'btn_open_table')
+    radio_cost_user = window.findChild(QRadioButton, 'radio_cost_user')
     # cost table:
     cost_table = table_window.findChild(QTableWidget, 'cost_table')
     combo_from = table_window.findChild(QComboBox, 'combo_from')
@@ -389,7 +409,6 @@ if __name__ == "__main__":
         item.setFlags(item.flags() ^ Qt.ItemIsEditable)
         cost_table.setItem(index, 0, item)
         index += 1
-        default_update_costs[n] = [1 for x in range(9)]
 
     # add all listeners
     # tab 1:
@@ -399,7 +418,7 @@ if __name__ == "__main__":
     edit_seq2.textEdited.connect(onSequence2Changed(edit_seq2))
     next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget))
     tab_widget.currentChanged.connect(
-        onTabChanged(ed_matrix_table, label_cost, label_sim, es_list, label_title, label_es_chosen, edit_patch_input, btn_patch))
+        onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title, label_es_chosen, edit_patch_input, btn_patch))
 
     combo_from.currentIndexChanged.connect(on_combo_changed(cost_table))
     cost_table.cellChanged.connect(on_table_edited(combo_from, cost_table))
