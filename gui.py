@@ -145,7 +145,8 @@ def on_es_list_changed(es_label: QLabel, table: QTableWidget, btn_to_patch: QPus
 
 
 def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_sim: QLabel, es_list: QListWidget, label_t: QLabel,
-                 label_chosen_es: QLabel, line_patch_input: QLineEdit, button_start_patch: QPushButton):
+                 label_chosen_es: QLabel, line_patch_input: QLineEdit, button_start_patch: QPushButton, lbl_comp: QLabel,
+                 lbl_comp_title: QLabel):
     global sequence1, sequence2, dp, paths, es
 
     def on_change(ind):
@@ -165,6 +166,14 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
             # DO WAGNER FISHER
             is_user_cost = rButton.isChecked()
             dp = wagnerFisher(sequence1, sequence2, is_user_cost)
+
+            if is_user_cost:
+                dp_def = wagnerFisher(sequence1, sequence2, False)
+                def_cost = dp_def[len(sequence1)][len(sequence2)].value
+                label_comparison.setText(str(1 / (1+def_cost)))
+            else:
+                label_comparison.hide()
+                label_comparison_title.hide()
 
             for i in range(len(sequence1) + 1):
                 for j in range(len(sequence2) + 1):
@@ -390,6 +399,8 @@ if __name__ == "__main__":
     label_title = window.findChild(QLabel, 'label_calculator')
     btn_to_patching = window.findChild(QPushButton, 'btn_next')
     btn_export_patching = window.findChild(QPushButton, 'btn_export')
+    label_comparison_title = window.findChild(QLabel, 'label_comparison_title')
+    label_comparison = window.findChild(QLabel, 'label_comparison')
 
     # tab 3:
     btn_import = window.findChild(QPushButton, 'btn_import')
@@ -418,7 +429,8 @@ if __name__ == "__main__":
     edit_seq2.textEdited.connect(onSequence2Changed(edit_seq2))
     next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget))
     tab_widget.currentChanged.connect(
-        onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title, label_es_chosen, edit_patch_input, btn_patch))
+        onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title,
+                     label_es_chosen, edit_patch_input, btn_patch, label_comparison, label_comparison_title))
 
     combo_from.currentIndexChanged.connect(on_combo_changed(cost_table))
     cost_table.cellChanged.connect(on_table_edited(combo_from, cost_table))
