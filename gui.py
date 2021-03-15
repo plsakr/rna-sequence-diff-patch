@@ -11,7 +11,7 @@ import json
 ui_file_name = "mainwindow.ui"
 ui_table_name = "costtable.ui"
 
-nucleotides = ['A', 'G', 'C', 'U', 'R', 'M', 'S', 'V', 'N']
+nucleotides = ['A', 'G', 'C', 'U', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N']
 
 sequence1 = ''
 sequence2 = ''
@@ -62,6 +62,23 @@ def onSequence2Changed(eText):
 
     return on_change
 
+def on_insert_cost_change(op):
+
+    def on_change(val):
+        try:
+            score = float(val)
+            copy_costs = user_costs
+            copy_costs[op] = score
+
+            with open('user_costs.json', 'w') as f:
+                json.dump(copy_costs, f)
+
+            reload_user_costs()
+        except:
+            pass
+
+    return on_change
+
 
 def on_combo_changed(table):
     global nucleotides
@@ -73,11 +90,11 @@ def on_combo_changed(table):
             scores = user_costs['update'][val]
 
             scores = list(scores.values())
-            for i in range(9):
+            for i in range(len(nucleotides)):
                 it = QTableWidgetItem(str(scores[i]))
                 table.setItem(i, 1, it)
         else:
-            for i in range(9):
+            for i in range(len(nucleotides)):
                 it = QTableWidgetItem()
                 table.setItem(i, 1, it)
 
@@ -411,6 +428,9 @@ if __name__ == "__main__":
     label_patched = window.findChild(QLabel, 'label_patched')
     btn_rev = window.findChild(QPushButton, 'btn_invert')
 
+    edit_cost_ins.setText(str(user_costs['insert']))
+    edit_cost_del.setText(str(user_costs['delete']))
+
     combo_selections = ['Please Select Nucleotide...', *nucleotides]
     combo_from.insertItems(0, combo_selections)
 
@@ -431,7 +451,8 @@ if __name__ == "__main__":
     tab_widget.currentChanged.connect(
         onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title,
                      label_es_chosen, edit_patch_input, btn_patch, label_comparison, label_comparison_title))
-
+    edit_cost_ins.textEdited.connect(on_insert_cost_change('insert'))
+    edit_cost_del.textEdited.connect(on_insert_cost_change('delete'))
     combo_from.currentIndexChanged.connect(on_combo_changed(cost_table))
     cost_table.cellChanged.connect(on_table_edited(combo_from, cost_table))
 

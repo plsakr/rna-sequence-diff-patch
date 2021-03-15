@@ -156,10 +156,21 @@
             <item>
              <widget class="QLabel" name="label_10">
               <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600; text-decoration: underline;&quot;&gt;Base Nucleotides&lt;/span&gt;:&lt;/p&gt;&lt;p&gt;&lt;/p&gt;&lt;ul&gt;&lt;li&gt;A&lt;/li&gt;&lt;li&gt;U&lt;/li&gt;&lt;li&gt;C&lt;/li&gt;&lt;li&gt;G&lt;/li&gt;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+               <string>
+&lt;table width=&quot;60%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;1&quot; border=&quot;1&quot; bgcolor=&quot;#FFFFFF&quot;&gt;
+&lt;tbody&gt;&lt;tr&gt; &lt;th&gt;IUPAC Code&lt;/th&gt; &lt;th&gt;Meaning&lt;/th&gt;  &lt;/tr&gt;
+
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;A&lt;/th&gt;   &lt;td&gt;A&lt;/td&gt;  &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;C&lt;/th&gt;   &lt;td&gt;C&lt;/td&gt;  &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;G&lt;/th&gt;   &lt;td&gt;G&lt;/td&gt;  &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;U&lt;/th&gt; &lt;td&gt;U&lt;/td&gt;  &lt;/tr&gt;
+
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;M&lt;/th&gt;    &lt;td&gt;A or C&lt;/td&gt;  &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;R&lt;/th&gt;    &lt;td&gt;A or G&lt;/td&gt; &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;W&lt;/th&gt;    &lt;td&gt;A or U&lt;/td&gt;  &lt;/tr&gt;
+
+&lt;/tbody&gt;
+&lt;/table&gt;</string>
               </property>
              </widget>
             </item>
@@ -181,28 +192,23 @@
                <string notr="true"/>
               </property>
               <property name="text">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600; text-decoration: underline;&quot;&gt;Ambiguous Nucleotides&lt;/span&gt;:&lt;/p&gt;&lt;p&gt;&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;R - Represents:&lt;ol&gt;&lt;li&gt;G&lt;/li&gt;&lt;li&gt;A&lt;/li&gt;&lt;/ol&gt;&lt;/li&gt;
-&lt;li&gt;M - Represents:&lt;ol&gt;&lt;li&gt;A&lt;/li&gt;&lt;li&gt;C&lt;/li&gt;&lt;/ol&gt;&lt;/li&gt;
-&lt;li&gt;S - Represents:&lt;ol&gt;&lt;li&gt;G&lt;/li&gt;&lt;li&gt;C&lt;/li&gt;&lt;/ol&gt;&lt;/li&gt;&lt;p&gt;&lt;/p&gt;
-&lt;/ol&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="label_12">
-              <property name="text">
-               <string>&lt;html&gt;&lt;body&gt;
-&lt;ul&gt;
-&lt;li&gt;V - Represents:&lt;ol&gt;&lt;li&gt;G&lt;/li&gt;&lt;li&gt;A&lt;/li&gt;&lt;li&gt;C&lt;/li&gt;&lt;/ol&gt;&lt;/li&gt;
-&lt;li&gt;N - Represents:&lt;ol&gt;&lt;li&gt;G&lt;/li&gt;&lt;li&gt;A&lt;/li&gt;&lt;li&gt;U&lt;/li&gt;&lt;li&gt;C&lt;/li&gt;&lt;/ol&gt;&lt;/li&gt;&lt;p&gt;&lt;/p&gt;
-&lt;/ol&gt;&lt;/li&gt;
+               <string>
+&lt;table width=&quot;60%&quot; cellspacing=&quot;0&quot; cellpadding=&quot;1&quot; border=&quot;1&quot; bgcolor=&quot;#FFFFFF&quot;&gt;
+&lt;tbody&gt;&lt;tr&gt; &lt;th&gt;IUPAC Code&lt;/th&gt; &lt;th&gt;Meaning&lt;/th&gt;  &lt;/tr&gt;
 
-&lt;/ul&gt;
-&lt;/body&gt;
-&lt;/html&gt;</string>
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;S&lt;/th&gt;    &lt;td&gt;C or G&lt;/td&gt; &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;Y&lt;/th&gt;    &lt;td&gt;C or U&lt;/td&gt; &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;K&lt;/th&gt;    &lt;td&gt;G or U&lt;/td&gt; &lt;/tr&gt;
+
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;V&lt;/th&gt;    &lt;td&gt;A or C or G&lt;/td&gt;  &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;H&lt;/th&gt;    &lt;td&gt;A or C or U&lt;/td&gt; &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;D&lt;/th&gt;    &lt;td&gt;A or G or U&lt;/td&gt; &lt;/tr&gt;
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;B&lt;/th&gt;    &lt;td&gt;C or G or U&lt;/td&gt; &lt;/tr&gt;
+
+&lt;tr align=&quot;center&quot;&gt; &lt;th&gt;N&lt;/th&gt;  &lt;td&gt;G or A or U or C&lt;/td&gt;      &lt;/tr&gt;
+
+&lt;/tbody&gt;
+&lt;/table&gt;</string>
               </property>
              </widget>
             </item>

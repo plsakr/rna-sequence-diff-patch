@@ -35,7 +35,7 @@
       </size>
      </property>
      <property name="rowCount">
-      <number>9</number>
+      <number>15</number>
      </property>
      <property name="columnCount">
       <number>2</number>
@@ -43,6 +43,12 @@
      <attribute name="horizontalHeaderVisible">
       <bool>true</bool>
      </attribute>
+     <row/>
+     <row/>
+     <row/>
+     <row/>
+     <row/>
+     <row/>
      <row/>
      <row/>
      <row/>

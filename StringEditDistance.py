@@ -52,9 +52,9 @@ def cost(char1, char2, userCosts=False):
 
 
 def min_cost(dp, i, j, str1, str2, userCosts=False):
-    global default_costs
-    cost_insert = dp[i][j - 1].value + default_costs['insert']
-    cost_delete = dp[i - 1][j].value + default_costs['delete']
+    global default_costs, user_costs
+    cost_insert = dp[i][j - 1].value + default_costs['insert'] if not userCosts else dp[i][j - 1].value + user_costs['insert']
+    cost_delete = dp[i - 1][j].value + default_costs['delete'] if not userCosts else dp[i - 1][j].value + user_costs['delete']
     cost_update = dp[i - 1][j - 1].value + cost(str1[i - 1], str2[j - 1], userCosts)
 
     costs = [cost_insert, cost_delete, cost_update]
@@ -77,6 +77,7 @@ def min_cost(dp, i, j, str1, str2, userCosts=False):
 
 
 def wagnerFisher(str1, str2, userCosts=False):
+    global user_costs, default_costs
     rows = len(str1) + 1
     cols = len(str2) + 1
 
@@ -87,7 +88,8 @@ def wagnerFisher(str1, str2, userCosts=False):
             n = Node(-1, -1, 0)
             dp[0][j] = n
         else:
-            n = Node(-1, j - 1, j)
+            i_cost = default_costs['insert'] if not userCosts else user_costs['insert']
+            n = Node(-1, j - 1, j*i_cost)
             n_previous = dp[0][j - 1]
             n_previous.add_neighbor(n, 'insert')
             dp[0][j] = n
@@ -96,7 +98,8 @@ def wagnerFisher(str1, str2, userCosts=False):
         if i == 0:
             pass
         else:
-            n = Node(i - 1, -1, i)
+            d_cost = default_costs['delete'] if not userCosts else user_costs['delete']
+            n = Node(i - 1, -1, i*d_cost)
             n_previous = dp[i - 1][0]
             n_previous.add_neighbor(n, 'delete')
             dp[i][0] = n
@@ -277,7 +280,7 @@ def patching(es, str1, str2):
 
 str1 = 'AGRGA'
 str2 = 'AGGGA'
-dp = wagnerFisher(str1, str2)
+dp = wagnerFisher(str1, str2, True)
 print(dp)
 all_paths = create_paths(dp)
 for path in all_paths:
