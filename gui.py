@@ -8,6 +8,7 @@ from PySide6.QtGui import QColor
 from StringEditDistance import wagnerFisher, create_paths, generate_es, patching, generate_rev_es, reload_user_costs, user_costs
 import json
 
+
 ui_file_name = "mainwindow.ui"
 ui_table_name = "costtable.ui"
 
@@ -33,6 +34,24 @@ def validate_sequence(seq):
         else:
             return False
     return True
+
+
+def format_edit_script(es):
+    out = '['
+    for op in es:
+        operation = op[0]
+
+        if operation == 'insert':
+            out += f'Ins({op[1]},{op[2][1]}),'
+        elif operation == 'delete':
+            out += f'Del({op[1][0]}),'
+        else:
+            out += f'Upd({op[1][0]},{op[2][1]}),'
+
+    if len(out) > 1:
+        out = out[:-1]
+    out += ']'
+    return out
 
 
 def onSequence1Changed(eText):
@@ -194,7 +213,7 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
 
             for i in range(len(sequence1) + 1):
                 for j in range(len(sequence2) + 1):
-                    cell = QTableWidgetItem(str(dp[i][j].value))
+                    cell = QTableWidgetItem(str(round(dp[i][j].value, 2)))
                     cell.setFlags(cell.flags() ^ Qt.ItemIsEditable ^ Qt.ItemIsSelectable)
                     cell.setTextAlignment(Qt.AlignCenter)
                     table.setItem(i, j, cell)
@@ -211,15 +230,15 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
             for p in paths:
                 my_es = generate_es(p, sequence1, sequence2)
                 if len(my_es) == 0:
-                    view = f'Edit Script #{i + 1}: {my_es} - Edit script is empty --> sequences are already homomorphic'
+                    view = f'Edit Script #{i + 1}: {format_edit_script(my_es)} - Edit script is empty --> sequences are already homomorphic'
                 else:
-                    view = f'Edit Script #{i + 1}: {my_es}'
+                    view = f'Edit Script #{i + 1}: {format_edit_script(my_es)}'
                 es_list.addItem(view)
                 i += 1
 
         elif ind == 2:  # we are patching
             if es != []:  # already chosen editscript
-                label_chosen_es.setText(f'Chosen Edit Script: {es}')
+                label_chosen_es.setText(f'Chosen Edit Script: {format_edit_script(es)}')
                 line_patch_input.setText(sequence1)
                 button_start_patch.setEnabled(True)
 
@@ -294,9 +313,9 @@ def on_import_patching(list_choose_es: QListWidget, line_input: QLineEdit):
             list_choose_es.clear()
             for e in edit_scripts:
                 if len(e) == 0:
-                    view = f'Edit Script #{i + 1}: {e} - Edit script is empty --> sequences are already homomorphic'
+                    view = f'Edit Script #{i + 1}: {format_edit_script(e)} - Edit script is empty --> sequences are already homomorphic'
                 else:
-                    view = f'Edit Script #{i + 1}: {e}'
+                    view = f'Edit Script #{i + 1}: {format_edit_script(e)}'
                 list_choose_es.addItem(view)
                 i += 1
 
@@ -315,7 +334,7 @@ def on_select_es(es_label: QLabel, start_patch: QPushButton, seq_inpu: QLineEdit
         print('ana ma2boor hon v2')
 
         es = edit_scripts[ind]
-        es_label.setText(str(es))
+        # es_label.setText(str(es))
         start_patch.setEnabled(True)
 
         if ind < 0:
@@ -342,7 +361,7 @@ def on_reverse(line_patch_input: QLineEdit, label_new_es: QLabel):
         sequence1 = sequence2
         sequence2 = temp
         es = generate_rev_es(es, sequence1, sequence2)
-        label_new_es.setText(str(es))
+        label_new_es.setText(str(format_edit_script(es)))
         line_patch_input.setText(sequence1)
         inverted = not inverted
 

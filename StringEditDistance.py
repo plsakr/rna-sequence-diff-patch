@@ -199,11 +199,11 @@ def generate_es(path, str1, str2):
             if str1[next.i].lower() == str2[next.j].lower():
                 pass
             else:
-                edit_script.append(('update', next.i, next.j))
+                edit_script.append(('update', (next.i, str1[next.i]), (next.j, str2[next.j])))
         elif actual_edge.operation == 'delete':
-            edit_script.append((actual_edge.operation, next.i))
+            edit_script.append((actual_edge.operation, (next.i, str1[next.i])))
         else:
-            edit_script.append((actual_edge.operation, next.i, next.j))
+            edit_script.append((actual_edge.operation, next.i, (next.j, str2[next.j])))
 
         current = path[path_index]
         if path_index == len(path) - 1:
@@ -213,7 +213,7 @@ def generate_es(path, str1, str2):
     return edit_script
 
 
-def generate_rev_es(es, str1, str2):
+def generate_rev_es(es, str1_old, str2_old):
     new_es = []
 
     for e in es:
@@ -226,7 +226,7 @@ def generate_rev_es(es, str1, str2):
             pass
         elif operation == 'delete':
             new_operation = 'insert'
-            new_source = e[1] - 1
+            new_source = e[1][0] - 1
             new_dest = e[1]
         elif operation == 'update':
             new_operation = 'update'
@@ -249,8 +249,8 @@ def patching(es, str1, str2):
         current_sequence = es[i]
         # print("Currently patching: ", current_sequence)
         current_operation = current_sequence[0]
-        original_source_index = current_sequence[1]
-        original_destination_index = current_sequence[2] if current_operation != 'delete' else -1
+        original_source_index = current_sequence[1] if current_operation == 'insert' else current_sequence[1][0]
+        original_destination_index = current_sequence[2][0] if current_operation != 'delete' else -1
 
         # print(i)
         # print(original_source_index)
@@ -279,7 +279,7 @@ def patching(es, str1, str2):
 
 
 str1 = 'AGRGA'
-str2 = 'AGGGA'
+str2 = 'AGGGAA'
 dp = wagnerFisher(str1, str2, True)
 print(dp)
 all_paths = create_paths(dp)
@@ -287,7 +287,7 @@ for path in all_paths:
     es = generate_es(path, str1, str2)
     print(es)
     print(patching(es, str1, str2))
-    # print('REVERSING')
-    # rev = generate_rev_es(es, str1, str2)
-    # print(rev)
-    # print(patching(rev, str2, str1))
+    print('REVERSING')
+    rev = generate_rev_es(es, str1, str2)
+    print(rev)
+    print(patching(rev, str2, str1))
