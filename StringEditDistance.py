@@ -241,7 +241,7 @@ def generate_rev_es(es, str1_old, str2_old):
     return new_es
 
 
-def patching(es, str1, str2):
+def patching(es, str1):
     count_index_destination = 0
     count_index_source = 0
     modified_str1 = str1
@@ -262,7 +262,7 @@ def patching(es, str1, str2):
         # print(original_source_index)
 
         if current_operation == 'update':
-            dest_char = str2[original_destination_index]
+            dest_char = current_sequence[2][1]
             modified_str1 = modified_str1[:original_source_index] + dest_char + modified_str1[
                                                                                 original_source_index + 1:]
 
@@ -270,7 +270,7 @@ def patching(es, str1, str2):
             modified_str1 = modified_str1[0: original_source_index:] + modified_str1[original_source_index + 1::]
             count_index_source -= 1
         if current_operation == 'insert':
-            current_destination_char = str2[original_destination_index]
+            current_destination_char = current_sequence[2][1]
             modified_str1 = modified_str1[:original_source_index] + current_destination_char + modified_str1[
                                                                                                original_source_index:]
             count_index_destination += 1
@@ -286,8 +286,8 @@ all_paths = create_paths(dp)
 for path in all_paths:
     es = generate_es(path, str1, str2)
     print(es)
-    print(patching(es, str1, str2))
+    print(patching(es, str1))
     print('REVERSING')
     rev = generate_rev_es(es, str1, str2)
     print(rev)
-    print(patching(rev, str2, str1))
+    print(patching(rev, str2))

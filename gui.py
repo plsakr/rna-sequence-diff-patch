@@ -22,6 +22,8 @@ current_path = []
 es = []
 
 inverted = False
+prog_inv = False
+force_refresh_table = False
 
 edit_scripts = []
 
@@ -143,7 +145,7 @@ def on_table_edited(combo, table):
     return on_change
 
 
-def on_es_list_changed(es_label: QLabel, table: QTableWidget, btn_to_patch: QPushButton, btn_export: QPushButton):
+def on_es_list_changed(table: QTableWidget, btn_to_patch: QPushButton, btn_export: QPushButton):
     global current_path, paths, sequence1, sequence2, es
 
     def on_change(ind):
@@ -171,7 +173,7 @@ def on_es_list_changed(es_label: QLabel, table: QTableWidget, btn_to_patch: QPus
                 btn_to_patch.setEnabled(True)
                 btn_export.setEnabled(True)
 
-            es_label.setText(str(es))
+            # es_label.setText(str(es))
 
         if ind < 0:
             btn_to_patch.setEnabled(False)
@@ -181,75 +183,94 @@ def on_es_list_changed(es_label: QLabel, table: QTableWidget, btn_to_patch: QPus
 
 
 def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_sim: QLabel, es_list: QListWidget, label_t: QLabel,
-                 label_chosen_es: QLabel, line_patch_input: QLineEdit, button_start_patch: QPushButton, lbl_comp: QLabel,
-                 lbl_comp_title: QLabel):
-    global sequence1, sequence2, dp, paths, es
+                 label_chosen_es: QLabel, radio_1: QRadioButton, radio_2: QRadioButton, button_start_patch: QPushButton, lbl_comp: QLabel,
+                 lbl_comp_title: QLabel, list_choose_es: QListWidget):
+    global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table
 
     def on_change(ind):
-        global sequence1, sequence2, dp, paths, es
+        global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table
         print('CURRENT TAB', ind)
 
         if ind == 1:
-            label_t.setText(f'Cost table of transforming "{sequence1}" into "{sequence2}":')
-            table.clear()
-            table.setRowCount(len(sequence1) + 1)
-            table.setColumnCount(len(sequence2) + 1)
-            table.setVerticalHeaderLabels(['', *sequence1])
-            table.setHorizontalHeaderLabels(['', *sequence2])
-            table.horizontalHeader().setStyleSheet('* {font-weight: bold;}')
-            table.verticalHeader().setStyleSheet('* {font-weight: bold;}')
+            if force_refresh_table:
+                force_refresh_table = False
+                label_t.setText(f'Cost table of transforming "{sequence1}" into "{sequence2}":')
+                table.clear()
+                table.setRowCount(len(sequence1) + 1)
+                table.setColumnCount(len(sequence2) + 1)
+                table.setVerticalHeaderLabels(['', *sequence1])
+                table.setHorizontalHeaderLabels(['', *sequence2])
+                table.horizontalHeader().setStyleSheet('* {font-weight: bold;}')
+                table.verticalHeader().setStyleSheet('* {font-weight: bold;}')
 
-            # DO WAGNER FISHER
-            is_user_cost = rButton.isChecked()
-            dp = wagnerFisher(sequence1, sequence2, is_user_cost)
+                # DO WAGNER FISHER
+                is_user_cost = rButton.isChecked()
+                dp = wagnerFisher(sequence1, sequence2, is_user_cost)
 
-            if is_user_cost:
-                dp_def = wagnerFisher(sequence1, sequence2, False)
-                def_cost = dp_def[len(sequence1)][len(sequence2)].value
-                label_comparison.setText(str(1 / (1+def_cost)))
-            else:
-                label_comparison.hide()
-                label_comparison_title.hide()
-
-            for i in range(len(sequence1) + 1):
-                for j in range(len(sequence2) + 1):
-                    cell = QTableWidgetItem(str(round(dp[i][j].value, 2)))
-                    cell.setFlags(cell.flags() ^ Qt.ItemIsEditable ^ Qt.ItemIsSelectable)
-                    cell.setTextAlignment(Qt.AlignCenter)
-                    table.setItem(i, j, cell)
-
-            e_cost = dp[len(sequence1)][len(sequence2)].value
-            l_cost.setText(str(e_cost))
-            l_sim.setText(str(1 / (1 + e_cost)))
-            es_list.setSelectionMode(QAbstractItemView.SingleSelection)
-
-            # Generate edit scripts
-            paths = create_paths(dp)
-            i = 0
-            es_list.clear()
-            for p in paths:
-                my_es = generate_es(p, sequence1, sequence2)
-                if len(my_es) == 0:
-                    view = f'Edit Script #{i + 1}: {format_edit_script(my_es)} - Edit script is empty --> sequences are already homomorphic'
+                if is_user_cost:
+                    dp_def = wagnerFisher(sequence1, sequence2, False)
+                    def_cost = dp_def[len(sequence1)][len(sequence2)].value
+                    label_comparison.setText(str(1 / (1+def_cost)))
                 else:
-                    view = f'Edit Script #{i + 1}: {format_edit_script(my_es)}'
-                es_list.addItem(view)
-                i += 1
+                    label_comparison.hide()
+                    label_comparison_title.hide()
+
+                for i in range(len(sequence1) + 1):
+                    for j in range(len(sequence2) + 1):
+                        cell = QTableWidgetItem(str(round(dp[i][j].value, 2)))
+                        cell.setFlags(cell.flags() ^ Qt.ItemIsEditable ^ Qt.ItemIsSelectable)
+                        cell.setTextAlignment(Qt.AlignCenter)
+                        table.setItem(i, j, cell)
+
+                e_cost = dp[len(sequence1)][len(sequence2)].value
+                l_cost.setText(str(e_cost))
+                l_sim.setText(str(1 / (1 + e_cost)))
+                es_list.setSelectionMode(QAbstractItemView.SingleSelection)
+
+                # Generate edit scripts
+                paths = create_paths(dp)
+                i = 0
+                es_list.clear()
+                edit_scripts.clear()
+                for p in paths:
+                    my_es = generate_es(p, sequence1, sequence2)
+                    edit_scripts.append(my_es)
+                    if len(my_es) == 0:
+                        view = f'Edit Script #{i + 1}: {format_edit_script(my_es)} - Edit script is empty --> sequences are already homomorphic'
+                    else:
+                        view = f'Edit Script #{i + 1}: {format_edit_script(my_es)}'
+                    es_list.addItem(view)
+                    i += 1
 
         elif ind == 2:  # we are patching
             if es != []:  # already chosen editscript
                 label_chosen_es.setText(f'Chosen Edit Script: {format_edit_script(es)}')
-                line_patch_input.setText(sequence1)
+                radio_1.setText(sequence1)
+                radio_2.setText(sequence2)
                 button_start_patch.setEnabled(True)
+            if edit_scripts != []:
+                radio_1.setText(sequence1)
+                radio_2.setText(sequence2)
+                i = 0
+                list_choose_es.clear()
+                for e in edit_scripts:
+                    if len(e) == 0:
+                        view = f'Edit Script #{i + 1}: {format_edit_script(e)} - Edit script is empty --> sequences are already homomorphic'
+                    else:
+                        view = f'Edit Script #{i + 1}: {format_edit_script(e)}'
+                    list_choose_es.addItem(view)
+                    i += 1
 
     return on_change
 
 
 def onInputNextClicked(eText1, eText2, tabs: QTabWidget):
-    global sequence1, sequence2
+    global sequence1, sequence2, force_refresh_table
 
     def on_click():
-        global sequence1, sequence2
+        global sequence1, sequence2, force_refresh_table
+        sequence1 = eText1.text()
+        sequence2 = eText2.text()
         if len(sequence1) == 0 or len(sequence2) == 0 or not(validate_sequence(sequence1)) or not(validate_sequence(sequence2)):
             print('ERROR FOUND: SEQUENCES NOT VALID')
             if len(sequence1) == 0 or not(validate_sequence(sequence1)):
@@ -263,6 +284,7 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget):
         else:
             print('Inputs and costs confirmed:')
             print(f'Seq1: {sequence1}. Seq2: {sequence2}')
+            force_refresh_table = True
             tabs.setTabEnabled(1, True)
             tabs.setCurrentIndex(1)
 
@@ -289,12 +311,13 @@ def on_export_to_file():
 
 def on_goto_patching(tabs: QTabWidget):
     def on_click():
+
         tabs.setCurrentIndex(2)
 
     return on_click
 
 
-def on_import_patching(list_choose_es: QListWidget, line_input: QLineEdit):
+def on_import_patching(list_choose_es: QListWidget, radio_1: QRadioButton, radio_2: QRadioButton):
     global sequence1, sequence2, edit_scripts
 
     def on_click():
@@ -319,22 +342,23 @@ def on_import_patching(list_choose_es: QListWidget, line_input: QLineEdit):
                 list_choose_es.addItem(view)
                 i += 1
 
-            line_input.setText(sequence1)
+            radio_1.setText(sequence1)
+            radio_2.setText(sequence2)
 
             print('loaded JSON file')
 
     return on_click
 
 
-def on_select_es(es_label: QLabel, start_patch: QPushButton, seq_inpu: QLineEdit):
-    global sequence1, sequence2, es, edit_scripts, inverted
+def on_select_es(es_label: QLabel, start_patch: QPushButton, radio_1: QRadioButton):
+    global sequence1, sequence2, es, edit_scripts, inverted, prog_inv
 
     def on_change(ind):
-        global sequence1, sequence2, es, edit_scripts, inverted
+        global sequence1, sequence2, es, edit_scripts, inverted, prog_inv
         print('ana ma2boor hon v2')
 
         es = edit_scripts[ind]
-        # es_label.setText(str(es))
+        es_label.setText(str(format_edit_script(es)))
         start_patch.setEnabled(True)
 
         if ind < 0:
@@ -346,38 +370,42 @@ def on_select_es(es_label: QLabel, start_patch: QPushButton, seq_inpu: QLineEdit
             tmp = sequence1
             sequence1 = sequence2
             sequence2 = tmp
-            seq_inpu.setText(sequence1)
             inverted = not inverted
+            prog_inv = True
+            radio_1.setChecked(True)
+
 
     return on_change
 
 
-def on_reverse(line_patch_input: QLineEdit, label_new_es: QLabel):
-    global es, sequence1, sequence2, inverted
+def on_reverse(radio_1: QRadioButton, radio_2: QRadioButton, label_new_es: QLabel):
+    global es, sequence1, sequence2, inverted, prog_inv
 
     def on_click():
-        global es, sequence1, sequence2, inverted
+        global es, sequence1, sequence2, inverted, prog_inv
+        if prog_inv:
+            prog_inv = False
+            return
         temp = sequence1
         sequence1 = sequence2
         sequence2 = temp
         es = generate_rev_es(es, sequence1, sequence2)
         label_new_es.setText(str(format_edit_script(es)))
-        line_patch_input.setText(sequence1)
         inverted = not inverted
 
     return on_click
 
 
-def on_start_patching(line_patch_input: QLineEdit, label_out: QLabel):
-    global es, sequence2
+def on_start_patching(radio_1: QRadioButton, radio_2: QRadioButton, label_out: QLabel):
+    global es
 
     def on_click():
-        global es, sequence2
-        val = line_patch_input.text()
+        global es
+        val = radio_1.text() if radio_1.isChecked() else radio_2.text()
 
-        if len(val) > 0 and es != [] and sequence2 != '':
+        if len(val) > 0 and es != []:
             print('PATCHING')
-            patched = patching(es, val, sequence2)
+            patched = patching(es, val)
             label_out.setText(patched)
 
     return on_click
@@ -431,7 +459,6 @@ if __name__ == "__main__":
     label_cost = window.findChild(QLabel, 'label_ec')
     label_sim = window.findChild(QLabel, 'label_sim')
     es_list = window.findChild(QListWidget, 'es_list')
-    label_es = window.findChild(QLabel, 'label_es')
     label_title = window.findChild(QLabel, 'label_calculator')
     btn_to_patching = window.findChild(QPushButton, 'btn_next')
     btn_export_patching = window.findChild(QPushButton, 'btn_export')
@@ -442,10 +469,12 @@ if __name__ == "__main__":
     btn_import = window.findChild(QPushButton, 'btn_import')
     list_patch_choose = window.findChild(QListWidget, 'list_patch_es')
     label_es_chosen = window.findChild(QLabel, 'label_es_chosen')
-    edit_patch_input = window.findChild(QLineEdit, 'edit_patch_input')
+    # edit_patch_input = window.findChild(QLineEdit, 'edit_patch_input')
+    radio_patch_seq1 = window.findChild(QRadioButton, 'radio_patch_sequence1')
+    radio_patch_seq2 = window.findChild(QRadioButton, 'radio_patch_sequence2')
     btn_patch = window.findChild(QPushButton, 'btn_patch')
     label_patched = window.findChild(QLabel, 'label_patched')
-    btn_rev = window.findChild(QPushButton, 'btn_invert')
+    # btn_rev = window.findChild(QPushButton, 'btn_invert')
 
     edit_cost_ins.setText(str(user_costs['insert']))
     edit_cost_del.setText(str(user_costs['delete']))
@@ -469,7 +498,8 @@ if __name__ == "__main__":
     next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget))
     tab_widget.currentChanged.connect(
         onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title,
-                     label_es_chosen, edit_patch_input, btn_patch, label_comparison, label_comparison_title))
+                     label_es_chosen, radio_patch_seq1, radio_patch_seq2,
+                     btn_patch, label_comparison, label_comparison_title, list_patch_choose))
     edit_cost_ins.textEdited.connect(on_insert_cost_change('insert'))
     edit_cost_del.textEdited.connect(on_insert_cost_change('delete'))
     combo_from.currentIndexChanged.connect(on_combo_changed(cost_table))
@@ -477,14 +507,15 @@ if __name__ == "__main__":
 
     # tab 2:
     es_list.currentRowChanged.connect(
-        on_es_list_changed(label_es, ed_matrix_table, btn_to_patching, btn_export_patching))
+        on_es_list_changed(ed_matrix_table, btn_to_patching, btn_export_patching))
     btn_to_patching.clicked.connect(on_goto_patching(tab_widget))
 
     # tab 3:
-    btn_patch.clicked.connect(on_start_patching(edit_patch_input, label_patched))
+    btn_patch.clicked.connect(on_start_patching(radio_patch_seq1, radio_patch_seq2, label_patched))
     btn_export_patching.clicked.connect(on_export_to_file)
-    btn_import.clicked.connect(on_import_patching(list_patch_choose, edit_patch_input))
-    list_patch_choose.currentRowChanged.connect(on_select_es(label_es_chosen, btn_patch, edit_patch_input))
-    btn_rev.clicked.connect(on_reverse(edit_patch_input, label_es_chosen))
+    btn_import.clicked.connect(on_import_patching(list_patch_choose, radio_patch_seq1, radio_patch_seq2))
+    list_patch_choose.currentRowChanged.connect(on_select_es(label_es_chosen, btn_patch, radio_patch_seq1))
+
+    radio_patch_seq1.toggled.connect(on_reverse(radio_patch_seq1, radio_patch_seq2, label_es_chosen))
 
     sys.exit(app.exec_())
