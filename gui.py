@@ -8,9 +8,12 @@ from PySide6.QtGui import QColor
 from StringEditDistance import wagnerFisher, create_paths, generate_es, patching, generate_rev_es, reload_user_costs, user_costs
 import json
 
+import fa_import
+
 
 ui_file_name = "mainwindow.ui"
 ui_table_name = "costtable.ui"
+ui_dataset_name = 'dataset.ui'
 
 nucleotides = ['A', 'G', 'C', 'U', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N']
 
@@ -54,6 +57,28 @@ def format_edit_script(es):
         out = out[:-1]
     out += ']'
     return out
+
+
+def import_from_dataset(sequenceNbr: int, window, list_widget: QListWidget, btn: QPushButton, seq1: QLineEdit, seq2: QLineEdit):
+
+    def on_import():
+
+        if len(list_widget.selectedItems()) != 0:
+            key = list_widget.selectedItems()[0].text()
+            seq = fa_import.get_seq(key)
+            if sequenceNbr == 1:
+                seq1.setText(seq)
+            else:
+                seq2.setText(seq)
+            btn.clicked.disconnect()
+            window.hide()
+
+    def on_click():
+        window.show()
+        btn.clicked.connect(on_import)
+
+    return on_click
+
 
 
 def onSequence1Changed(eText):
@@ -426,13 +451,22 @@ if __name__ == "__main__":
 
     # load table window
     ui_table_fil = QFile(ui_table_name)
-    if not ui_file.open(QIODevice.ReadOnly):
+    if not ui_table_fil.open(QIODevice.ReadOnly):
         print(f"Cannot open {ui_file_name}: {ui_file.errorString()}")
         sys.exit(-1)
 
     load_table = QUiLoader()
     table_window = loader.load(ui_table_fil)
     ui_table_fil.close()
+
+    ui_dataset_file = QFile(ui_dataset_name)
+    if not ui_dataset_file.open(QIODevice.ReadOnly):
+        print(f"Cannot open {ui_file_name}: {ui_file.errorString()}")
+        sys.exit(-1)
+
+    load_dataset_window = QUiLoader()
+    dataset_window = loader.load(ui_dataset_file)
+    ui_dataset_file.close()
 
     if not window:
         print(loader.errorString())
@@ -444,6 +478,8 @@ if __name__ == "__main__":
     # main window variables:
     # tab 1:
     next_button = window.findChild(QPushButton, 'button_input_next')
+    btn_import_1 = window.findChild(QPushButton, 'btn_import_1')
+    btn_import_2 = window.findChild(QPushButton, 'btn_import_2')
     edit_seq1 = window.findChild(QLineEdit, 'edit_sequence1')
     edit_seq2 = window.findChild(QLineEdit, 'edit_sequence2')
     edit_cost_ins = window.findChild(QLineEdit, 'edit_cost_insert')
@@ -453,6 +489,10 @@ if __name__ == "__main__":
     # cost table:
     cost_table = table_window.findChild(QTableWidget, 'cost_table')
     combo_from = table_window.findChild(QComboBox, 'combo_from')
+
+    # dataset window
+    list_dataset = dataset_window.findChild(QListWidget, 'list_data')
+    btn_import_data = dataset_window.findChild(QPushButton, 'btn_import_data')
 
     # tab 2:
     ed_matrix_table = window.findChild(QTableWidget, 'ed_matrix_table')
@@ -489,9 +529,15 @@ if __name__ == "__main__":
         cost_table.setItem(index, 0, item)
         index += 1
 
+    all_titles = fa_import.get_all_keys()
+    for t in all_titles:
+        list_dataset.addItem(t)
+
     # add all listeners
     # tab 1:
     btn_table.clicked.connect(lambda: table_window.show())
+    btn_import_1.clicked.connect(import_from_dataset(1, dataset_window, list_dataset, btn_import_data, edit_seq1, edit_seq2))
+    btn_import_2.clicked.connect(import_from_dataset(2, dataset_window, list_dataset, btn_import_data, edit_seq1, edit_seq2))
 
     edit_seq1.textEdited.connect(onSequence1Changed(edit_seq1))
     edit_seq2.textEdited.connect(onSequence2Changed(edit_seq2))
