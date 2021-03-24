@@ -1,0 +1,103 @@
+<?xml version="1.0"?>
+<seqXML source="piRNA" sourceVersion="56" speciesName="Chicken" seqXMLversion="0.4">
+    <entry id="piR-ocu-1" >
+        <RNAseq>AAAAAAAAAAAGGGAGCGAAGTCAAGGCCC</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-2" >
+        <RNAseq>AAAAAAAAAAAGTGCTACGACATTTGGGGGT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-3" >
+        <RNAseq>AAAAAAAAAAAGTGCTACGACATTTGGGTGT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-4" >
+        <RNAseq>AAAAAAAAAAATATGATCTTCGTTGGC</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-5" >
+        <RNAseq>AAAAAAAAAAATGAGGCGTCGGCAGC</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-6" >
+        <RNAseq>AAAAAAAAAAATTAAGGGATGAGCTA</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-7" >
+        <RNAseq>AAAAAAAAAACGAAGGAACCCAAAGA</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-8" >
+        <RNAseq>AAAAAAAAAACGAGCATGGCAGAAGGT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-9" >
+        <RNAseq>AAAAAAAAAACTCACCATGCTGAAAAGC</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-10" >
+        <RNAseq>AAAAAAAAAAGATAGGAGTGTCACCC</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-11" >
+        <RNAseq>AAAAAAAAAAGATGCTATCCCCAG</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-12" >
+        <RNAseq>AAAAAAAAAAGTGCTACGACATTTGGGTGG</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-13" >
+        <RNAseq>AAAAAAAAAAGTGCTACGACATTTGGGTGT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-14" >
+        <RNAseq>AAAAAAAAAATGACTGGGCCCACCACA</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-15" >
+        <RNAseq>AAAAAAAAACAAGCCGAGACTCACTACA</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-16" >
+        <RNAseq>AAAAAAAAACAGAGTATTTTCTGTATT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-17" >
+        <RNAseq>AAAAAAAAACCAAACTTACACGAT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-18" >
+        <RNAseq>AAAAAAAAACCGTCTTCTGCTTGT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-19" >
+        <RNAseq>AAAAAAAAAGAACCTCCAGAAATGGC</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-20" >
+        <RNAseq>AAAAAAAAAGAAGAGAAGATCTGGC</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-21" >
+        <RNAseq>AAAAAAAAAGACAGGGGCTTGGAACTCCATT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-22" >
+        <RNAseq>AAAAAAAAAGACGACACACAAAGACT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-23" >
+        <RNAseq>AAAAAAAAAGACTAAGAAGAGACCCT</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-24" >
+        <RNAseq>AAAAAAAAAGCACCAAGACAGCTG</RNAseq>
+    </entry>
+
+    <entry id="piR-ocu-25" >
+        <RNAseq>AAAAAAAAAGCCAGAAAAGAAACT</RNAseq>
+    </entry>
+
+</seqXML>

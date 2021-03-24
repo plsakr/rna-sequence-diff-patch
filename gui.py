@@ -9,11 +9,13 @@ from StringEditDistance import wagnerFisher, create_paths, generate_es, patching
 import json
 
 import fa_import
+from import_xml import import_xml
 
 
 ui_file_name = "mainwindow.ui"
 ui_table_name = "costtable.ui"
 ui_dataset_name = 'dataset.ui'
+ui_xml_name = 'xml_import.ui'
 
 nucleotides = ['A', 'G', 'C', 'U', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N']
 
@@ -23,6 +25,8 @@ dp = [[]]
 paths = []
 current_path = []
 es = []
+
+imported_sequences = {}
 
 inverted = False
 prog_inv = False
@@ -76,6 +80,46 @@ def import_from_dataset(sequenceNbr: int, window, list_widget: QListWidget, btn:
     def on_click():
         window.show()
         btn.clicked.connect(on_import)
+
+    return on_click
+
+
+def on_browse_xml(list_widget: QListWidget):
+    global imported_sequences
+
+    def on_browse():
+        global imported_sequences
+        open_path_ext = QFileDialog.getOpenFileName(filter='XML (*.xml)')
+        open_path = open_path_ext[0]
+        if open_path != '':
+            imported_sequences = import_xml(open_path)
+            list_widget.clear()
+
+            for t in imported_sequences.keys():
+                list_widget.addItem(t)
+
+    return on_browse
+
+def import_from_xml(sequenceNbr: int, window, list_widget: QListWidget, btn_save: QPushButton,
+                    seq1: QLineEdit, seq2: QLineEdit):
+    global imported_sequences
+
+
+    def on_import():
+        global imported_sequences
+        if len(list_widget.selectedItems()) != 0:
+            key = list_widget.selectedItems()[0].text()
+            seq = imported_sequences[key]
+            if sequenceNbr == 1:
+                seq1.setText(seq)
+            else:
+                seq2.setText(seq)
+            btn_save.clicked.disconnect()
+            window.hide()
+
+    def on_click():
+        window.show()
+        btn_save.clicked.connect(on_import)
 
     return on_click
 
@@ -468,6 +512,15 @@ if __name__ == "__main__":
     dataset_window = loader.load(ui_dataset_file)
     ui_dataset_file.close()
 
+    ui_xml_file = QFile(ui_xml_name)
+    if not ui_xml_file.open(QIODevice.ReadOnly):
+        print(f"Cannot open {ui_file_name}: {ui_xml_file.errorString()}")
+        sys.exit(-1)
+
+    load_xml_window = QUiLoader()
+    xml_window = loader.load(ui_xml_file)
+    ui_xml_file.close()
+
     if not window:
         print(loader.errorString())
         sys.exit(-1)
@@ -480,6 +533,10 @@ if __name__ == "__main__":
     next_button = window.findChild(QPushButton, 'button_input_next')
     btn_import_1 = window.findChild(QPushButton, 'btn_import_1')
     btn_import_2 = window.findChild(QPushButton, 'btn_import_2')
+
+    btn_xml_import_1 = window.findChild(QPushButton, 'btn_xml_import_1')
+    btn_xml_import_2 = window.findChild(QPushButton, 'btn_xml_import_2')
+
     edit_seq1 = window.findChild(QLineEdit, 'edit_sequence1')
     edit_seq2 = window.findChild(QLineEdit, 'edit_sequence2')
     edit_cost_ins = window.findChild(QLineEdit, 'edit_cost_insert')
@@ -493,6 +550,11 @@ if __name__ == "__main__":
     # dataset window
     list_dataset = dataset_window.findChild(QListWidget, 'list_data')
     btn_import_data = dataset_window.findChild(QPushButton, 'btn_import_data')
+
+    # xml import window
+    btn_browse_xml = xml_window.findChild(QPushButton, 'btn_xml_browse')
+    list_dataset_xml = xml_window.findChild(QListWidget, 'list_data')
+    btn_import_data_xml = xml_window.findChild(QPushButton, 'btn_import_data')
 
     # tab 2:
     ed_matrix_table = window.findChild(QTableWidget, 'ed_matrix_table')
@@ -538,6 +600,10 @@ if __name__ == "__main__":
     btn_table.clicked.connect(lambda: table_window.show())
     btn_import_1.clicked.connect(import_from_dataset(1, dataset_window, list_dataset, btn_import_data, edit_seq1, edit_seq2))
     btn_import_2.clicked.connect(import_from_dataset(2, dataset_window, list_dataset, btn_import_data, edit_seq1, edit_seq2))
+
+    btn_browse_xml.clicked.connect(on_browse_xml(list_dataset_xml))
+    btn_xml_import_1.clicked.connect(import_from_xml(1, xml_window, list_dataset_xml, btn_import_data_xml, edit_seq1, edit_seq2))
+    btn_xml_import_2.clicked.connect(import_from_xml(2, xml_window, list_dataset_xml, btn_import_data_xml, edit_seq1, edit_seq2))
 
     edit_seq1.textEdited.connect(onSequence1Changed(edit_seq1))
     edit_seq2.textEdited.connect(onSequence2Changed(edit_seq2))
