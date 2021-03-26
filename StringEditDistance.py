@@ -324,7 +324,7 @@ def generate_es(path, str1, str2):
 
 
 # In case we wish to reverse the ES to get str1 from str2, we will use the following function.
-def generate_rev_es(es, str1_old, str2_old):
+def generate_rev_es(es):
     new_es = []
 
     # For every possible edit script, start by getting the 1st operation.
@@ -430,16 +430,16 @@ def patching(es, str1):
     return modified_str1
 
 # Used for testing
-str1 = 'AGRGA'
-str2 = 'AGGGAA'
-dp = wagnerFisher(str1, str2, True)
-print(dp)
-all_paths = create_paths(dp)
-for path in all_paths:
-    es = generate_es(path, str1, str2)
-    print(es)
-    print(patching(es, str1))
-    print('REVERSING')
-    rev = generate_rev_es(es, str1, str2)
-    print(rev)
-    print(patching(rev, str2))
+# str1 = 'AGRGA'
+# str2 = 'AGGGAA'
+# dp = wagnerFisher(str1, str2, True)
+# print(dp)
+# all_paths = create_paths(dp)
+# for path in all_paths:
+#     es = generate_es(path, str1, str2)
+#     print(es)
+#     print(patching(es, str1))
+#     print('REVERSING')
+#     rev = generate_rev_es(es, str1, str2)
+#     print(rev)
+#     print(patching(rev, str2))

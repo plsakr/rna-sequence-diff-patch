@@ -458,7 +458,7 @@ def on_reverse(radio_1: QRadioButton, radio_2: QRadioButton, label_new_es: QLabe
         temp = sequence1
         sequence1 = sequence2
         sequence2 = temp
-        es = generate_rev_es(es, sequence1, sequence2)
+        es = generate_rev_es(es)
         label_new_es.setText(str(format_edit_script(es)))
         inverted = not inverted
 
