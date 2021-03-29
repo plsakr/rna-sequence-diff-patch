@@ -174,7 +174,7 @@ def on_combo_changed(table):
     global nucleotides
 
     def on_change(ind):
-        print('ana hon')
+        # print('ana hon')
         if ind > 0:
             val = nucleotides[ind - 1]
             scores = user_costs['update'][val]
@@ -196,11 +196,11 @@ def on_table_edited(combo, table):
 
     def on_change(row, col):
         global nucleotides
-        print(f'edited ({row},{col})')
+        # print(f'edited ({row},{col})')
         currentNucleotideFrom = combo.currentIndex() - 1
 
         if currentNucleotideFrom >= 0:
-            print(user_costs)
+            # print(user_costs)
             currentNuc = nucleotides[currentNucleotideFrom]
             copy_costs = user_costs
             copy_costs['update'][currentNuc][nucleotides[row]] = float(table.item(row, col).text())
@@ -208,8 +208,8 @@ def on_table_edited(combo, table):
                 json.dump(copy_costs, f)
 
             reload_user_costs()
-            print(user_costs)
-            print('DEFAULT COSTS UPDATED. ')
+            # print(user_costs)
+            # print('DEFAULT COSTS UPDATED. ')
 
     return on_change
 
@@ -219,12 +219,11 @@ def on_es_list_changed(table: QTableWidget, btn_to_patch: QPushButton, btn_expor
 
     def on_change(ind):
         global current_path, paths, sequence1, sequence2, es
-        print('ana ma2boor hon')
 
         for i in range(table.rowCount()):
             for j in range(table.columnCount()):
                 table.item(i, j).setBackground(QColor(255, 255, 255))
-                print(f'{i}, {j}')
+                # print(f'{i}, {j}')
 
         if ind >= 0:
             p = paths[ind]
@@ -233,7 +232,7 @@ def on_es_list_changed(table: QTableWidget, btn_to_patch: QPushButton, btn_expor
                 i = n.i + 1
                 j = n.j + 1
                 table.item(i, j).setBackground(QColor(174, 224, 123))
-                print(f'{i}, {j}')
+                # print(f'{i}, {j}')
 
             current_path = p
             es = generate_es(p, sequence1, sequence2)
@@ -258,7 +257,7 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
 
     def on_change(ind):
         global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table
-        print('CURRENT TAB', ind)
+        # print('CURRENT TAB', ind)
 
         if ind == 1:
             if force_refresh_table:
@@ -351,8 +350,8 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget):
             else:
                 eText2.setStyleSheet('')
         else:
-            print('Inputs and costs confirmed:')
-            print(f'Seq1: {sequence1}. Seq2: {sequence2}')
+            # print('Inputs and costs confirmed:')
+            # print(f'Seq1: {sequence1}. Seq2: {sequence2}')
             force_refresh_table = True
             tabs.setTabEnabled(1, True)
             tabs.setCurrentIndex(1)
@@ -414,7 +413,7 @@ def on_import_patching(list_choose_es: QListWidget, radio_1: QRadioButton, radio
             radio_1.setText(sequence1)
             radio_2.setText(sequence2)
 
-            print('loaded JSON file')
+            # print('loaded JSON file')
 
     return on_click
 
@@ -424,7 +423,6 @@ def on_select_es(es_label: QLabel, start_patch: QPushButton, radio_1: QRadioButt
 
     def on_change(ind):
         global sequence1, sequence2, es, edit_scripts, inverted, prog_inv
-        print('ana ma2boor hon v2')
 
         es = edit_scripts[ind]
         es_label.setText(str(format_edit_script(es)))
@@ -473,7 +471,7 @@ def on_start_patching(radio_1: QRadioButton, radio_2: QRadioButton, label_out: Q
         val = radio_1.text() if radio_1.isChecked() else radio_2.text()
 
         if len(val) > 0 and es != []:
-            print('PATCHING')
+            # print('PATCHING')
             patched = patching(es, val)
             label_out.setText(patched)
 
