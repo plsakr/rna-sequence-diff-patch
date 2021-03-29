@@ -279,6 +279,8 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
                     dp_def = wagnerFisher(sequence1, sequence2, False)
                     def_cost = dp_def[len(sequence1)][len(sequence2)].value
                     label_comparison.setText(str(1 / (1+def_cost)))
+                    label_comparison.show()
+                    label_comparison_title.show()
                 else:
                     label_comparison.hide()
                     label_comparison_title.hide()
