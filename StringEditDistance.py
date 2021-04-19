@@ -281,6 +281,9 @@ def generate_es(path, str1, str2):
 
     # The last node has 0 edges. So, as long as there are edges, do the following:
     while len(next.edges) >= 0:
+        current_operation = {"operation": "",
+                             "source": {"character": "", "index": 0},
+                             "destination": {"character": "", "index": 0}}
         # increment the path index
         path_index += 1
         # get the current node's edges.
@@ -293,26 +296,34 @@ def generate_es(path, str1, str2):
         # (the operation attribute is associated with the edge).
         # If the operation corresponds to an update operation check the following:
         if actual_edge.operation == 'update':
-            # If the characters of the source at the corresponding indices (next_i and next_j) are equal:
-            # no need to add a meaningless operation that has no cost to the ES: pass.
-            if str1[next.i].lower() == str2[next.j].lower():
-                pass
-            else:
-                # Else: append to the ES array the tuple that contains: this is an update operation:
-                # updating srcChar with destChar.
-                edit_script.append(('update', (next.i, str1[next.i]), (next.j, str2[next.j])))
+            # append to the ES array the tuple that contains: this is an update operation:
+            # updating srcChar with destChar.
+            current_operation['operation'] = 'update'
+            current_operation['source']['character'] = str1[next.i]
+            current_operation['source']['index'] = next.i
+            current_operation['destination']['character'] = str2[next.j]
+            current_operation['destination']['index'] = next.j
         # If the operation corresponds to a delete operation:
         elif actual_edge.operation == 'delete':
             # append to the ES array the tuple that contains: this is a delete operation:
             # deleting srcChar at index i.
-            edit_script.append((actual_edge.operation, (next.i, str1[next.i])))
+            current_operation['operation'] = 'delete'
+            current_operation['source']['character'] = str1[next.i]
+            current_operation['source']['index'] = next.i
+            current_operation['destination']['character'] = str2[next.j]
+            current_operation['destination']['index'] = next.j
         # Otherwise:the operation corresponds to an insert operation:
         else:
             # append to the ES array the tuple that contains: this is an insert operation:
             # inserting destChar at index j.
-            edit_script.append((actual_edge.operation, next.i, (next.j, str2[next.j])))
+            current_operation['operation'] = 'insert'
+            current_operation['source']['character'] = str1[next.i]
+            current_operation['source']['index'] = next.i
+            current_operation['destination']['character'] = str2[next.j]
+            current_operation['destination']['index'] = next.j
 
         # get the next node in the path to loop through the different nodes until reaching the target node.
+        edit_script.append(current_operation)
         current = path[path_index]
         # If we have reached the last node, return the edit script (next node will not be defined).
         if path_index == len(path) - 1:
@@ -329,37 +340,41 @@ def generate_rev_es(es):
 
     # For every possible edit script, start by getting the 1st operation.
     for e in es:
-        operation = e[0]
+        operation = e['operation']
 
         # If it is an insert operation: it will become a delete operation
         if operation == 'insert':
             new_operation = 'delete'
-            new_source = e[2]
+            new_source = e['destination']
             # For a delete operation, destination is None.
-            new_dest = None
+            new_dest = e['source']
             pass
         # If it is a delete operation: it will become an insert operation: deleting the char that we were inserting in
         # the prev ES but now we need the index at which we want to delete.
         elif operation == 'delete':
             new_operation = 'insert'
-            new_source = e[1][0] - 1
-            new_dest = e[1]
+            new_source = {'index': e['destination']['index'] - 1, 'character': e['destination']['character']}
+            new_dest = e['source']
         # If it is an update operation: it will remain an update operation but with reversed characters.
         elif operation == 'update':
             new_operation = 'update'
             # source character becomes the prev destination character.
-            new_source = e[2]
+            new_source = e['destination']
             # destination character becomes the prev source character.
-            new_dest = e[1]
+            new_dest = e['source']
 
-        if new_dest is not None:
-            # for insert and update operations: append the following tuple (with this format) to the ES:
-            new_es.append((new_operation, new_source, new_dest))
-        else:
-            # for delete operations: append the following tuple (with this format) to the ES:
-            new_es.append((new_operation, new_source))
+        new_full_operation = {'operation': new_operation, 'source': new_source, 'destination': new_dest}
+        new_es.append(new_full_operation)
     # return the generated reversed ES.
     return new_es
+
+def generate_sequence_from_es(es):
+    seq = []
+    for op in es:
+        if op['operation'] != 'insert':
+            seq.append(op['source']['character'])
+
+    return ''.join(seq)
 
 # Patch str1 and transform it to become homomorphic to str2 using the following method:
 def patching(es, str1):
@@ -371,6 +386,18 @@ def patching(es, str1):
     count_index_source = 0
     modified_str1 = str1
 
+    original_str1 = generate_sequence_from_es(es)
+    error_code = 0
+    if modified_str1 == original_str1:
+        pass
+    elif len(modified_str1) >= len(original_str1):
+        error_code = 1
+    else:
+        error_code = -1
+
+    if error_code == -1:
+        return (-1, '')
+
     # Loop through the different operations available in a given ES:
     for i in range(len(es)):
         # Select the current operation sequence at index i in the ES.
@@ -378,12 +405,12 @@ def patching(es, str1):
         # print("Currently patching: ", current_sequence)
         # Extract the operation from the previously extracted sequence:
         # according to our ES format, the operation is always at index 0 in the sequence tuple.
-        current_operation = current_sequence[0]
+        current_operation = current_sequence['operation']
 
         # get the current indices of source and destination
         # (based on the operation: ES has a different format for delete and insert).
-        original_source_index = current_sequence[1] if current_operation == 'insert' else current_sequence[1][0]
-        original_destination_index = current_sequence[2][0] if current_operation != 'delete' else -1
+        original_source_index = current_sequence['source']['index']
+        original_destination_index = current_sequence['destination']['index']
 
         # print(i)
         # print(original_source_index)
@@ -404,7 +431,7 @@ def patching(es, str1):
         if current_operation == 'update':
             # Start by getting the corresponding character from the destination by referring to the ES
             # (and the way we formatted it).
-            dest_char = current_sequence[2][1]
+            dest_char = current_sequence['destination']['character']
             # Update the character which will be at index original_source_index in the new modified string
             modified_str1 = modified_str1[:original_source_index] + dest_char + modified_str1[
                                                                                 original_source_index + 1:]
@@ -419,7 +446,7 @@ def patching(es, str1):
         if current_operation == 'insert':
             # Start by getting the corresponding character from the destination by referring to the ES
             # (and the way we formatted it).
-            current_destination_char = current_sequence[2][1]
+            current_destination_char = current_sequence['destination']['character']
             # Increment the count_index_source by 1 since we have inserted a character:
             # increased the string's length by 1
             modified_str1 = modified_str1[:original_source_index] + current_destination_char + modified_str1[
@@ -427,17 +454,21 @@ def patching(es, str1):
             count_index_destination += 1
     # Return the modified string which should be homomorphic to the destination that was specified
     # while generating the ES.
-    return modified_str1
+    return (error_code, modified_str1)
+
+
+
+
 
 # Used for testing
-# str1 = 'AGRGA'
-# str2 = 'AGGGAA'
-# dp = wagnerFisher(str1, str2, True)
-# print(dp)
-# all_paths = create_paths(dp)
-# for path in all_paths:
-#     es = generate_es(path, str1, str2)
-#     print(es)
+str1 = 'AGRGA'
+str2 = 'AGGGAA'
+dp = wagnerFisher(str1, str2, True)
+print(dp)
+all_paths = create_paths(dp)
+for path in all_paths:
+    es = generate_es(path, str1, str2)
+    print(es)
 #     print(patching(es, str1))
 #     print('REVERSING')
 #     rev = generate_rev_es(es, str1, str2)

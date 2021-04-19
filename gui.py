@@ -1,7 +1,8 @@
 import sys
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QApplication, QPushButton, QLineEdit, QTableWidget, QComboBox, QTableWidgetItem,
-                               QTabWidget, QLabel, QListWidget, QAbstractItemView, QFileDialog, QRadioButton)
+                               QTabWidget, QLabel, QListWidget, QAbstractItemView, QFileDialog, QRadioButton,
+                               QMessageBox)
 
 from PySide6.QtCore import QFile, QIODevice, Qt
 from PySide6.QtGui import QColor
@@ -48,19 +49,33 @@ def validate_sequence(seq):
 def format_edit_script(es):
     out = '['
     for op in es:
-        operation = op[0]
+        operation = op['operation']
+
+        if operation == 'update' and op['source']['character'] == op['destination']['character']:
+            continue
 
         if operation == 'insert':
-            out += f'Ins({op[1]},{op[2][1]}),'
+            out += f'Ins({op["source"]["index"]},{op["destination"]["character"]}),'
         elif operation == 'delete':
-            out += f'Del({op[1][0]}),'
+            out += f'Del({op["source"]["index"]}),'
         else:
-            out += f'Upd({op[1][0]},{op[2][1]}),'
+            out += f'Upd({op["source"]["index"]},{op["destination"]["character"]}),'
 
     if len(out) > 1:
         out = out[:-1]
     out += ']'
     return out
+
+def showdialog(text, is_error = False):
+    msg = QMessageBox()
+    msg.setIcon(QMessageBox.Critical if is_error else QMessageBox.Warning)
+
+    msg.setText(text)
+    # msg.setInformativeText("This is additional information")
+    msg.setWindowTitle("Patching Information")
+    msg.setStandardButtons(QMessageBox.Ok)
+
+    msg.exec_()
 
 
 def import_from_dataset(sequenceNbr: int, window, list_widget: QListWidget, btn: QPushButton, seq1: QLineEdit, seq2: QLineEdit):
@@ -251,7 +266,7 @@ def on_es_list_changed(table: QTableWidget, btn_to_patch: QPushButton, btn_expor
 
 
 def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_sim: QLabel, es_list: QListWidget, label_t: QLabel,
-                 label_chosen_es: QLabel, radio_1: QRadioButton, radio_2: QRadioButton, button_start_patch: QPushButton, lbl_comp: QLabel,
+                 label_chosen_es: QLabel, line_edit_patch: QLineEdit, button_start_patch: QPushButton, lbl_comp: QLabel,
                  lbl_comp_title: QLabel, list_choose_es: QListWidget):
     global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table
 
@@ -315,12 +330,10 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
         elif ind == 2:  # we are patching
             if es != []:  # already chosen editscript
                 label_chosen_es.setText(f'Chosen Edit Script: {format_edit_script(es)}')
-                radio_1.setText(sequence1)
-                radio_2.setText(sequence2)
+                line_edit_patch.setText(sequence1)
                 button_start_patch.setEnabled(True)
             if edit_scripts != []:
-                radio_1.setText(sequence1)
-                radio_2.setText(sequence2)
+                line_edit_patch.setText(sequence1)
                 i = 0
                 list_choose_es.clear()
                 for e in edit_scripts:
@@ -362,18 +375,13 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget):
 
 
 def on_export_to_file():
-    global sequence1, sequence2, paths
+    global es
 
     save_path_and_ext = QFileDialog.getSaveFileName(filter='JSON (*.json)')
     save_path = save_path_and_ext[0]
     if save_path != '':
         # print(save_path)
-        obj_to_save = {'seq1': sequence1, 'seq2': sequence2, 'es': []}
-
-        for p in paths:
-            my_es = generate_es(p, sequence1, sequence2)
-            if len(my_es) > 0:
-                obj_to_save['es'].append(my_es)
+        obj_to_save = {'edit_script': es}
 
         with open(save_path, 'w') as f:
             json.dump(obj_to_save, f, indent=4)
@@ -387,40 +395,41 @@ def on_goto_patching(tabs: QTabWidget):
     return on_click
 
 
-def on_import_patching(list_choose_es: QListWidget, radio_1: QRadioButton, radio_2: QRadioButton):
-    global sequence1, sequence2, edit_scripts
+def on_import_patching(list_choose_es: QListWidget, es_label: QLineEdit):
+    global sequence1, sequence2, es
 
     def on_click():
-        global sequence1, sequence2, edit_scripts
+        global sequence1, sequence2, es
         open_path_ext = QFileDialog.getOpenFileName(filter='JSON (*.json)')
         open_path = open_path_ext[0]
 
         if open_path != '':
             with open(open_path, 'r') as f:
                 data = json.load(f)
-                sequence1 = data['seq1']
-                sequence2 = data['seq2']
-                edit_scripts = data['es']
+                # sequence1 = data['seq1']
+                # sequence2 = data['seq2']
+                es = data['edit_script']
+                es_label.setText(str(format_edit_script(es)))
 
-            i = 0
+            # i = 0
             list_choose_es.clear()
-            for e in edit_scripts:
-                if len(e) == 0:
-                    view = f'Edit Script #{i + 1}: {format_edit_script(e)} - Edit script is empty --> sequences are already homomorphic'
-                else:
-                    view = f'Edit Script #{i + 1}: {format_edit_script(e)}'
-                list_choose_es.addItem(view)
-                i += 1
+            # for e in edit_scripts:
+            #     if len(e) == 0:
+            #         view = f'Edit Script #{i + 1}: {format_edit_script(e)} - Edit script is empty --> sequences are already homomorphic'
+            #     else:
+            #         view = f'Edit Script #{i + 1}: {format_edit_script(e)}'
+            #     list_choose_es.addItem(view)
+            #     i += 1
 
-            radio_1.setText(sequence1)
-            radio_2.setText(sequence2)
+            # radio_1.setText(sequence1)
+            # radio_2.setText(sequence2)
 
             # print('loaded JSON file')
 
     return on_click
 
 
-def on_select_es(es_label: QLabel, start_patch: QPushButton, radio_1: QRadioButton):
+def on_select_es(es_label: QLabel, start_patch: QPushButton):
     global sequence1, sequence2, es, edit_scripts, inverted, prog_inv
 
     def on_change(ind):
@@ -441,40 +450,37 @@ def on_select_es(es_label: QLabel, start_patch: QPushButton, radio_1: QRadioButt
             sequence2 = tmp
             inverted = not inverted
             prog_inv = True
-            radio_1.setChecked(True)
 
 
     return on_change
 
 
-def on_reverse(radio_1: QRadioButton, radio_2: QRadioButton, label_new_es: QLabel):
-    global es, sequence1, sequence2, inverted, prog_inv
-
-    def on_click():
-        global es, sequence1, sequence2, inverted, prog_inv
-        if prog_inv:
-            prog_inv = False
-            return
-        temp = sequence1
-        sequence1 = sequence2
-        sequence2 = temp
-        es = generate_rev_es(es)
-        label_new_es.setText(str(format_edit_script(es)))
-        inverted = not inverted
-
-    return on_click
-
-
-def on_start_patching(radio_1: QRadioButton, radio_2: QRadioButton, label_out: QLabel):
+def on_reverse(label_new_es: QLabel):
     global es
 
     def on_click():
         global es
-        val = radio_1.text() if radio_1.isChecked() else radio_2.text()
+        es = generate_rev_es(es)
+        label_new_es.setText(str(format_edit_script(es)))
+
+    return on_click
+
+
+def on_start_patching(line_edit_patch: QLineEdit, label_out: QLabel):
+    global es
+
+    def on_click():
+        global es
+        val = line_edit_patch.text()
 
         if len(val) > 0 and es != []:
             # print('PATCHING')
-            patched = patching(es, val)
+            error_code, patched = patching(es, val)
+            if error_code == -1:
+                showdialog('Error: The input sequence is not compatible with this edit script! It has a shorter sequence than necessary', is_error=True)
+            elif error_code == 1:
+                showdialog('Warning: The input sequence does not correspond to the one that generated this edit script. The result may not be valid.')
+
             label_out.setText(patched)
 
     return on_click
@@ -572,11 +578,12 @@ if __name__ == "__main__":
     list_patch_choose = window.findChild(QListWidget, 'list_patch_es')
     label_es_chosen = window.findChild(QLabel, 'label_es_chosen')
     # edit_patch_input = window.findChild(QLineEdit, 'edit_patch_input')
-    radio_patch_seq1 = window.findChild(QRadioButton, 'radio_patch_sequence1')
-    radio_patch_seq2 = window.findChild(QRadioButton, 'radio_patch_sequence2')
+    # radio_patch_seq1 = window.findChild(QRadioButton, 'radio_patch_sequence1')
+    # radio_patch_seq2 = window.findChild(QRadioButton, 'radio_patch_sequence2')
+    line_edit_patch_sequence = window.findChild(QLineEdit, 'line_edit_patch_sequence')
     btn_patch = window.findChild(QPushButton, 'btn_patch')
     label_patched = window.findChild(QLabel, 'label_patched')
-    # btn_rev = window.findChild(QPushButton, 'btn_invert')
+    btn_rev = window.findChild(QPushButton, 'btn_reverse')
 
     edit_cost_ins.setText(str(user_costs['insert']))
     edit_cost_del.setText(str(user_costs['delete']))
@@ -610,7 +617,7 @@ if __name__ == "__main__":
     next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget))
     tab_widget.currentChanged.connect(
         onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title,
-                     label_es_chosen, radio_patch_seq1, radio_patch_seq2,
+                     label_es_chosen, line_edit_patch_sequence,
                      btn_patch, label_comparison, label_comparison_title, list_patch_choose))
     edit_cost_ins.textEdited.connect(on_insert_cost_change('insert'))
     edit_cost_del.textEdited.connect(on_insert_cost_change('delete'))
@@ -623,11 +630,11 @@ if __name__ == "__main__":
     btn_to_patching.clicked.connect(on_goto_patching(tab_widget))
 
     # tab 3:
-    btn_patch.clicked.connect(on_start_patching(radio_patch_seq1, radio_patch_seq2, label_patched))
+    btn_patch.clicked.connect(on_start_patching(line_edit_patch_sequence, label_patched))
     btn_export_patching.clicked.connect(on_export_to_file)
-    btn_import.clicked.connect(on_import_patching(list_patch_choose, radio_patch_seq1, radio_patch_seq2))
-    list_patch_choose.currentRowChanged.connect(on_select_es(label_es_chosen, btn_patch, radio_patch_seq1))
+    btn_import.clicked.connect(on_import_patching(list_patch_choose, label_es_chosen))
+    list_patch_choose.currentRowChanged.connect(on_select_es(label_es_chosen, btn_patch))
 
-    radio_patch_seq1.toggled.connect(on_reverse(radio_patch_seq1, radio_patch_seq2, label_es_chosen))
+    btn_rev.clicked.connect(on_reverse(label_es_chosen))
 
     sys.exit(app.exec_())
