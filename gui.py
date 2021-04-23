@@ -2,12 +2,13 @@ import sys
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (QApplication, QPushButton, QLineEdit, QTableWidget, QComboBox, QTableWidgetItem,
                                QTabWidget, QLabel, QListWidget, QAbstractItemView, QFileDialog, QRadioButton,
-                               QMessageBox)
+                               QMessageBox, QCheckBox)
 
 from PySide6.QtCore import QFile, QIODevice, Qt
 from PySide6.QtGui import QColor
 from StringEditDistance import wagnerFisher, create_paths, generate_es, patching, generate_rev_es, reload_user_costs, user_costs
 import json
+from widgets import CheckableComboBox
 
 import fa_import
 from import_xml import import_xml
@@ -496,6 +497,7 @@ if __name__ == "__main__":
         print(f"Cannot open {ui_file_name}: {ui_file.errorString()}")
         sys.exit(-1)
     loader = QUiLoader()
+    loader.registerCustomWidget(CheckableComboBox)
     window = loader.load(ui_file)
     ui_file.close()
 
@@ -545,6 +547,12 @@ if __name__ == "__main__":
 
     edit_seq1 = window.findChild(QLineEdit, 'edit_sequence1')
     edit_seq2 = window.findChild(QLineEdit, 'edit_sequence2')
+
+    wagner_checkbox = window.findChild(QCheckBox, 'wagner_checkbox')
+    set_combo = window.findChild(CheckableComboBox, 'set_combo')
+    multiset_combo = window.findChild(CheckableComboBox, 'multiset_combo')
+    vector_combo = window.findChild(CheckableComboBox, 'vector_combo')
+
     edit_cost_ins = window.findChild(QLineEdit, 'edit_cost_insert')
     edit_cost_del = window.findChild(QLineEdit, 'edit_cost_delete')
     btn_table = window.findChild(QPushButton, 'btn_open_table')
@@ -590,6 +598,17 @@ if __name__ == "__main__":
 
     combo_selections = ['Please Select Nucleotide...', *nucleotides]
     combo_from.insertItems(0, combo_selections)
+
+    set_selections = ['Intersection', 'Jaccard', 'Dice']
+    set_combo.insertItems(0, set_selections)
+
+
+    multiset_selections = ['Intersection', 'Jaccard', 'Dice']
+    multiset_combo.insertItems(0, multiset_selections)
+
+    vector_selections = ['Cosine', 'Pearson', 'Manattan Distance', 'Euclidean Distance', 'Tanimoto', 'Dice']
+    set_combo.insertItems(0, vector_selections)
+
 
     index = 0
     for n in nucleotides:

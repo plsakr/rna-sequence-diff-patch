@@ -1,5 +1,7 @@
 import math
 import numpy as np
+from multiprocessing import Process, Manager
+import os
 
 nucleotides = ['A', 'G', 'C', 'U', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N']
 base_nucleotides = ['A', 'G', 'C', 'U']
@@ -37,21 +39,33 @@ def convert_to_set(sequence):
     return set(sequence)
 
 
-def intersection(a, b):
-    return a.intersection(b)
+def intersection(a, b, return_dict=None):
+    if return_dict is None:
+        return a.intersection(b)
+    else:
+        return_dict['intersection'] = a.intersection(b)
 
 
-def set_intersection_similarity(a, b):
-    return len(intersection(a, b))
+def set_intersection_similarity(a, b, return_dict=None):
+    if return_dict is None:
+        return len(intersection(a, b))
+    else:
+        return_dict['set_intersection_sim'] = len(intersection(a, b))
 
 
-def set_jaccard_similarity(a, b):
-    return set_intersection_similarity(a, b) / len(a.union(b))
+def set_jaccard_similarity(a, b, return_dict=None):
+    if return_dict is None:
+        return set_intersection_similarity(a, b) / len(a.union(b))
+    else:
+        return_dict['set_jaccard_sim'] = set_intersection_similarity(a, b) / len(a.union(b))
 
 
-def set_dice_similarity(a, b):
+def set_dice_similarity(a, b, return_dict=None):
     denom = len(a) + len(b)
-    return 2 * set_intersection_similarity(a, b) / denom
+    if return_dict is None:
+        return 2 * set_intersection_similarity(a, b) / denom
+    else:
+        return_dict['set_dice_sim'] = 2 * set_intersection_similarity(a, b) / denom
 
 
 def convert_to_multi_set(sequence):
@@ -66,27 +80,35 @@ def convert_to_multi_set(sequence):
     return c
 
 
-def multi_intersection_similarity(ca, cb):
+def multi_intersection_similarity(ca, cb, return_dict=None):
     sim = 0
 
-    for k in (ca.keys() & cb.keys()):
+    for k in range(4):
         sim += min(ca[k], cb[k])
+    if return_dict is None:
+        return sim
+    else:
+        return_dict['multi_intersection_sim'] = sim
 
-    return sim
 
-
-def multi_jaccard_similarity(ca, cb):
+def multi_jaccard_similarity(ca, cb, return_dict=None):
     num = multi_intersection_similarity(ca, cb)
 
-    den = sum(ca.values()) + sum(cb.values()) - num
-    return num / den
+    den = np.sum(ca) + np.sum(cb) - num
+    if return_dict is None:
+        return num / den
+    else:
+        return_dict['multi_jaccard_sim'] = num/den
 
 
-def multi_dice_similarity(ca, cb):
+def multi_dice_similarity(ca, cb, return_dict=None):
     num = multi_intersection_similarity(ca, cb)
 
-    den = sum(ca.values()) + sum(cb.values())
-    return 2 * num / den
+    den = np.sum(ca) + np.sum(cb)
+    if return_dict is None:
+        return 2 * num / den
+    else:
+        return_dict['multi_dice_sim'] = 2 * num/den
 
 
 def convert_to_vector(seq):
@@ -95,7 +117,6 @@ def convert_to_vector(seq):
     for i in range(len(seq) - 1):
         current = seq[i]
         cost_current = {'A': 0, 'G': 0, 'C': 0, 'U': 0}
-        cost_next = {'A': 0, 'G': 0, 'C': 0, 'U': 0}
 
         if current in base_nucleotides:
             cost_current[current] = cost_current[current] + 1
@@ -117,7 +138,7 @@ def convert_to_vector(seq):
     return vec
 
 
-def cosine(a, b):
+def cosine(a, b, return_dict = None):
     num = np.sum(np.multiply(a, b))
     a_sq = np.sum(np.square(a))
     b_sq = np.sum(np.square(b))
@@ -125,10 +146,14 @@ def cosine(a, b):
     den = math.sqrt(a_sq * b_sq)
     # print(num)
     # print(den)
-    return num / den
+
+    if return_dict is None:
+        return num / den
+    else:
+        return_dict['cosine'] = num/den
 
 
-def pearson(a, b):
+def pearson(a, b, return_dict = None):
     a_bar = np.average(a)
     b_bar = np.average(b)
 
@@ -141,42 +166,92 @@ def pearson(a, b):
     b_sub_sq = np.sum(np.square(b_sub))
 
     den = math.sqrt(a_sub_sq * b_sub_sq)
-    return num / den
+    if return_dict is None:
+        return num / den
+    else:
+        return_dict['pearson'] = num/den
 
 
-def euclidian_distance(a, b):
+def euclidian_distance(a, b, return_dict = None):
     dist = math.sqrt(np.sum(np.square(np.subtract(a, b))))
-    return 1 / (1 + dist)
+    if return_dict is None:
+        return 1 / (1 + dist)
+    else:
+        return_dict['euclidian_dist'] = 1 / (1 + dist)
 
 
-def manhattan_distance(a, b):
+def manhattan_distance(a, b, return_dict = None):
     dist = math.sqrt(np.sum(np.abs(np.subtract(a, b))))
-    return 1 / (1 + dist)
+    if return_dict is None:
+        return 1 / (1 + dist)
+    else:
+        return_dict['manhattan_distance'] = 1 / (1 + dist)
 
 
-def tanimoto_distance(a, b):
+def tanimoto_distance(a, b, return_dict = None):
     num = np.sum(np.multiply(a, b))
 
     a_sq = np.sum(np.square(a))
     b_sq = np.sum(np.square(b))
 
     den = a_sq + b_sq - num
-    return num / den
+    if return_dict is None:
+        return num / den
+    else:
+        return_dict['tanimoto_dist'] = num/den
 
 
-def dice_dist(a, b):
+def dice_dist(a, b, return_dict = None):
     num = 2 * np.sum(np.multiply(a, b))
     a_sq = np.sum(np.square(a))
     b_sq = np.sum(np.square(b))
 
     den = a_sq + b_sq
-    return num / den
+    if return_dict is None:
+        return num / den
+    else:
+        return_dict['dice_dist'] = num/den
 
+
+def create_and_start_threads(methods_to_execute, a, b):
+    result_objects = []
+    m = Manager()
+    return_dict = m.dict()
+    jobs = []
+
+    print('ma fetet ba3d')
+
+    for m in methods_to_execute:
+        print('ana hon v2')
+        p = Process(target=m, args=(a, b, return_dict))
+        jobs.append(p)
+        p.start()
+
+    for j in jobs:
+        j.join()
+
+    return return_dict
+
+def perform_methods(a, b, do_cosine=False, do_pearson=False, do_euclidian_distance=False, do_manhattan_distance=False,
+                    do_tanimoto_distance=False, do_dice_dist=False):
+    jobs = []
+    if do_cosine: jobs.append(cosine)
+    if do_pearson: jobs.append(pearson)
+    if do_euclidian_distance: jobs.append(euclidian_distance)
+    if do_manhattan_distance: jobs.append(manhattan_distance)
+    if do_tanimoto_distance: jobs.append(tanimoto_distance)
+    if do_dice_dist: jobs.append(dice_dist)
+    return create_and_start_threads(jobs, a, b)
 
 # a = 'AACG'
-b = 'NAN'
-
+# b = 'NAN'
+#
 # a_vec = convert_to_vector(a)
-b_vec = convert_to_vector(b)
-
-print('\n', b_vec)
+# b_vec = convert_to_vector(b)
+#
+# print('starting threads')
+#
+# if __name__ == '__main__':
+#     thread_test = create_and_start_threads([cosine, pearson, euclidian_distance, manhattan_distance, tanimoto_distance, dice_dist], a_vec, b_vec)
+#     print('BONJOUR')
+#     print(thread_test)

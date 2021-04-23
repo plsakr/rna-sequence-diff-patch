@@ -258,6 +258,49 @@ QTabBar::tab:!selected {
            </layout>
           </item>
           <item>
+           <widget class="QGroupBox" name="groupBox_7">
+            <property name="title">
+             <string>Similarity Measures</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_10">
+             <item row="0" column="0">
+              <widget class="QCheckBox" name="wagner_checkbox">
+               <property name="text">
+                <string>Wagner Fischer ED</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="3">
+              <widget class="CheckableComboBox" name="vector_combo">
+               <property name="placeholderText">
+                <string>Vector Based Measures</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="CheckableComboBox" name="multiset_combo">
+               <property name="currentIndex">
+                <number>-1</number>
+               </property>
+               <property name="placeholderText">
+                <string>Multiset Based Measures</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="CheckableComboBox" name="set_combo">
+               <property name="currentText">
+                <string/>
+               </property>
+               <property name="placeholderText">
+                <string>Set Based Measures</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
            <spacer name="verticalSpacer">
             <property name="orientation">
              <enum>Qt::Vertical</enum>
@@ -802,6 +845,13 @@ QTabBar::tab:!selected {
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>CheckableComboBox</class>
+   <extends>QComboBox</extends>
+   <header>widgets/CheckableComboBox.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>
