@@ -111,7 +111,7 @@ def multi_dice_similarity(ca, cb, return_dict=None):
         return_dict['multi_dice_sim'] = 2 * num/den
 
 
-def convert_to_vector(seq):
+def convert_to_tf_vector(seq):
     vec = np.zeros((4, 4))
 
     for i in range(len(seq) - 1):
@@ -136,6 +136,72 @@ def convert_to_vector(seq):
                     vec[base_nucleotides.index(k)][base_nucleotides.index(j)] += actual_cost
 
     return vec
+
+# TODO: adapt to DB instead of only 2 sequences
+def convert_to_idf_vector(seq1, seq2):
+    vec = np.zeros((15,15))
+
+    set1 = set()
+    for i in range(len(seq1) - 1):
+        current = seq1[i]
+        next_char = seq1[i + 1]
+        sequence = current + next_char
+        set1.add(sequence)
+
+    for pair in set1:
+        cost = compare_pair_to_seq(pair, seq2)
+        idf = 0 if cost == 0 else math.log(2/cost, 10)
+        index1 = nucleotides.index(pair[0])
+        index2 = nucleotides.index(pair[1])
+        vec[index1][index2] = idf
+
+    return vec
+
+
+
+
+def compare_pair_to_seq(pair, seq):
+    if pair in seq:
+        return 1
+    else:
+        first_possibilities, first_probabilities = possibilities(pair[0])
+        second_possibilities, second_probabilities = possibilities(pair[1])
+        current_max = 0
+
+        for pos1 in range(len(first_possibilities)):
+            for pos2 in range(len(second_possibilities)):
+                actual = first_possibilities[pos1] + second_possibilities[pos2]
+                if actual in seq:
+                    cost = first_probabilities[pos1] * second_probabilities[pos2]
+                    if current_max < cost:
+                        current_max = cost
+
+        return current_max
+
+
+def possibilities(nucleotide):
+    if nucleotide in base_nucleotides:
+        return get_base_possibilities(nucleotide)
+    else:
+        output = []
+        complete_vector = ambiguity_vectors[nucleotide]
+        for k in complete_vector.keys():
+            if complete_vector[k] != 0:
+                output.append(k)
+        probability = [1/len(output) for i in output]
+        probability.append(1)
+        output.append(nucleotide)
+        return output, probability
+
+
+def get_base_possibilities(base):
+    p, prob = [base], [1]
+
+    for k in ambiguity_vectors.keys():
+        if ambiguity_vectors[k][base] != 0:
+            p.append(k)
+            prob.append(ambiguity_vectors[k][base])
+    return p, prob
 
 
 def cosine(a, b, return_dict = None):
@@ -243,15 +309,18 @@ def perform_methods(a, b, do_cosine=False, do_pearson=False, do_euclidian_distan
     if do_dice_dist: jobs.append(dice_dist)
     return create_and_start_threads(jobs, a, b)
 
-# a = 'AACG'
-# b = 'NAN'
-#
-# a_vec = convert_to_vector(a)
-# b_vec = convert_to_vector(b)
-#
-# print('starting threads')
-#
-# if __name__ == '__main__':
-#     thread_test = create_and_start_threads([cosine, pearson, euclidian_distance, manhattan_distance, tanimoto_distance, dice_dist], a_vec, b_vec)
-#     print('BONJOUR')
-#     print(thread_test)
+a = 'AACG'
+b = 'NAN'
+
+a_vec = convert_to_idf_vector(a, b)
+b_vec = convert_to_idf_vector(b, a)
+
+print('a',a_vec)
+print('b',b_vec)
+
+print('starting threads')
+
+if __name__ == '__main__':
+    thread_test = create_and_start_threads([cosine, pearson, euclidian_distance, manhattan_distance, tanimoto_distance, dice_dist], a_vec, b_vec)
+    print('BONJOUR')
+    print(thread_test)

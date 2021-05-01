@@ -1,4 +1,8 @@
+import pickle
 import time
+from pymongo import MongoClient
+import bson
+from IRMethods import convert_to_tf_vector
 
 #This script is used to parse through fa files in order to import their corresponding dataset
 #Note that the .fa files for this project (demo included) were imported from piRNA db
@@ -7,13 +11,16 @@ import time
 #sequences and the values are the corresponding RNA Sequence for each ID/title
 data = {}
 
+mongoclient = MongoClient()
+db = mongoclient.rna_db
+collection = db.sequences
 #Each sequence in the database has a unique identifier which will be stored as title
 #and its corresponding sequence will be stored in the currentSequence
 currentSequence = ''
 currentTitle = ''
 
-imported = 100000
-#In order to decrease delays and make the shown RNA sequences more visible, we limited ourselves to a maximum of 100 000
+imported = 500
+#In order to decrease delays and make the shown RNA sequences more visible, we limited ourselves to a maximum of 500
 #RNA sequences. The variable imported is used as a down-counter.
 
 #Time is used to check how much time does this processing take
@@ -30,6 +37,7 @@ with open('./data/ocu.fa') as f:
                 #Select the sequence at the current id/title, decrement the counter
                 #and reset the current Sequence (clear it)
                 data[currentTitle] = currentSequence
+                # collection.insert_one({'sequence': currentSequence, 'tf': bson.Binary(pickle.dumps(convert_to_tf_vector(currentSequence)))})
                 imported -= 1
                 currentSequence = ''
 

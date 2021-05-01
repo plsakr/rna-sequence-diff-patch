@@ -10,6 +10,11 @@ from StringEditDistance import wagnerFisher, create_paths, generate_es, patching
 import json
 from widgets import CheckableComboBox
 
+from IRMethods import (cosine, pearson, euclidian_distance, manhattan_distance, tanimoto_distance, dice_dist,
+                       set_intersection_similarity, set_dice_similarity, set_jaccard_similarity,
+                       multi_intersection_similarity, multi_dice_similarity, multi_jaccard_similarity, convert_to_set,
+                       convert_to_tf_vector, convert_to_idf_vector, convert_to_multi_set, create_and_start_threads)
+
 import fa_import
 from import_xml import import_xml
 
@@ -20,6 +25,13 @@ ui_dataset_name = 'dataset.ui'
 ui_xml_name = 'xml_import.ui'
 
 nucleotides = ['A', 'G', 'C', 'U', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N']
+
+vector_methods_names = [cosine, pearson, manhattan_distance, euclidian_distance, tanimoto_distance, dice_dist]
+vector_selections = ['Cosine', 'Pearson', 'Manattan Distance', 'Euclidean Distance', 'Tanimoto', 'Dice']
+set_methods_names = [set_intersection_similarity, set_jaccard_similarity, set_dice_similarity]
+set_selections = ['Intersection', 'Jaccard', 'Dice']
+multiset_methods_names = [multi_intersection_similarity, multi_jaccard_similarity, multi_dice_similarity]
+multiset_selections = ['Intersection', 'Jaccard', 'Dice']
 
 sequence1 = ''
 sequence2 = ''
@@ -348,7 +360,8 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
     return on_change
 
 
-def onInputNextClicked(eText1, eText2, tabs: QTabWidget):
+def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, set_methods: CheckableComboBox,
+                       multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox):
     global sequence1, sequence2, force_refresh_table
 
     def on_click():
@@ -368,9 +381,51 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget):
         else:
             # print('Inputs and costs confirmed:')
             # print(f'Seq1: {sequence1}. Seq2: {sequence2}')
-            force_refresh_table = True
-            tabs.setTabEnabled(1, True)
-            tabs.setCurrentIndex(1)
+
+            should_calculate_wf = enable_wf.isChecked()
+            wanted_sets = set_methods.check_items()
+            wanted_multiset = multiset_methods.check_items()
+            wanted_vector = vector_methods.check_items()
+
+            if should_calculate_wf or len(wanted_sets)+len(wanted_multiset)+len(wanted_vector) > 0:
+
+                if len(wanted_sets) > 0:
+                    job_list = []
+                    seq1_set = convert_to_set(sequence1)
+                    seq2_set = convert_to_set(sequence2)
+                    for j in wanted_sets:
+                        job_list.append(set_methods_names[set_selections.index(j)])
+
+                    result_set = create_and_start_threads(job_list, seq1_set, seq2_set)
+                    print(result_set)
+
+                if len(wanted_vector) > 0:
+                    job_list = []
+                    seq1_vec = convert_to_tf_vector(sequence1)
+                    seq2_vec = convert_to_tf_vector(sequence2)
+                    for j in wanted_vector:
+                        job_list.append(vector_methods_names[vector_selections.index(j)])
+
+                    result_vec = create_and_start_threads(job_list, seq1_vec, seq2_vec)
+                    print(result_vec)
+
+                if len(wanted_multiset) > 0:
+                    job_list = []
+                    seq1_vec = convert_to_multi_set(sequence1)
+                    seq2_vec = convert_to_multi_set(sequence2)
+                    for j in wanted_multiset:
+                        job_list.append(multiset_methods_names[multiset_selections.index(j)])
+
+                    result_multi = create_and_start_threads(job_list, seq1_vec, seq2_vec)
+                    print(result_multi)
+
+
+                print(wanted_sets)
+                print(wanted_multiset)
+                print(wanted_vector)
+                force_refresh_table = True
+                tabs.setTabEnabled(1, True)
+                tabs.setCurrentIndex(1)
 
     return on_click
 
@@ -599,15 +654,15 @@ if __name__ == "__main__":
     combo_selections = ['Please Select Nucleotide...', *nucleotides]
     combo_from.insertItems(0, combo_selections)
 
-    set_selections = ['Intersection', 'Jaccard', 'Dice']
-    set_combo.insertItems(0, set_selections)
+
+    set_combo.addItems(set_selections)
 
 
-    multiset_selections = ['Intersection', 'Jaccard', 'Dice']
-    multiset_combo.insertItems(0, multiset_selections)
 
-    vector_selections = ['Cosine', 'Pearson', 'Manattan Distance', 'Euclidean Distance', 'Tanimoto', 'Dice']
-    set_combo.insertItems(0, vector_selections)
+    multiset_combo.addItems(multiset_selections)
+
+
+    vector_combo.addItems(vector_selections)
 
 
     index = 0
@@ -633,7 +688,7 @@ if __name__ == "__main__":
 
     edit_seq1.textEdited.connect(onSequence1Changed(edit_seq1))
     edit_seq2.textEdited.connect(onSequence2Changed(edit_seq2))
-    next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget))
+    next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget, wagner_checkbox, set_combo, multiset_combo, vector_combo))
     tab_widget.currentChanged.connect(
         onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title,
                      label_es_chosen, line_edit_patch_sequence,

@@ -64,8 +64,8 @@ for i in range(10, 260, 10):
 
     #
     start_time = time.time()
-    vec1 = convert_to_vector(seq1)
-    vec2 = convert_to_vector(seq2)
+    vec1 = convert_to_tf_vector(seq1)
+    vec2 = convert_to_tf_vector(seq2)
     end_time = time.time()
     time_convert_vector.append((end_time - start_time)*1000)
     print('Vector Convert Done')
