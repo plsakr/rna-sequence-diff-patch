@@ -2,7 +2,7 @@ import pickle
 import time
 from pymongo import MongoClient
 import bson
-from IRMethods import convert_to_tf_vector
+from IRMethods import convert_to_tf_vector, convert_to_idf_vector
 
 #This script is used to parse through fa files in order to import their corresponding dataset
 #Note that the .fa files for this project (demo included) were imported from piRNA db
@@ -27,6 +27,15 @@ imported = 500
 start = time.time()
 
 #locating the file in the directory
+
+def update_idfs():
+    for record in collection.find({}):
+        idf_vector = convert_to_idf_vector(record['sequence'], collection)
+        collection.update_one({'_id': record['_id']}, {'$set': {'idf': bson.Binary(pickle.dumps(idf_vector))}})
+
+    print('db idfs updated')
+
+
 with open('./data/ocu.fa') as f:
 
     for line in f:
@@ -38,6 +47,7 @@ with open('./data/ocu.fa') as f:
                 #and reset the current Sequence (clear it)
                 data[currentTitle] = currentSequence
                 # collection.insert_one({'sequence': currentSequence, 'tf': bson.Binary(pickle.dumps(convert_to_tf_vector(currentSequence)))})
+
                 imported -= 1
                 currentSequence = ''
 
@@ -52,6 +62,7 @@ with open('./data/ocu.fa') as f:
             currentSequence = currentSequence.replace('X', 'N')
 
 #end is used to mark the time when we finished processing this file
+# update_idfs()
 end = time.time()
 
 #Printing the time it took to finish processing

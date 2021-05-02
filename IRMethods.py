@@ -1,6 +1,10 @@
 import math
+import pickle
+
 import numpy as np
 from multiprocessing import Process, Manager
+from StringEditDistance import wagnerFisher
+from operator import itemgetter
 import os
 
 nucleotides = ['A', 'G', 'C', 'U', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N']
@@ -112,33 +116,36 @@ def multi_dice_similarity(ca, cb, return_dict=None):
 
 
 def convert_to_tf_vector(seq):
-    vec = np.zeros((4, 4))
+    vec = np.zeros((15, 15))
 
     for i in range(len(seq) - 1):
         current = seq[i]
-        cost_current = {'A': 0, 'G': 0, 'C': 0, 'U': 0}
-
-        if current in base_nucleotides:
-            cost_current[current] = cost_current[current] + 1
-        else:
-            cost_current = {k: cost_current[k] + ambiguity_vectors[current][k] for k in set(cost_current)}
-
         next_char = seq[i + 1]
-        if next_char in base_nucleotides:
-            for k in cost_current.keys():
-                vec[base_nucleotides.index(k)][base_nucleotides.index(next_char)] += cost_current[k]
 
-        else:
-            dest_costs = ambiguity_vectors[next_char]
-            for k in cost_current.keys():
-                for j in cost_current.keys():
-                    actual_cost = cost_current[k] * dest_costs[j]
-                    vec[base_nucleotides.index(k)][base_nucleotides.index(j)] += actual_cost
+        vec[nucleotides.index(current)][nucleotides.index(next_char)] += 1
+        # cost_current = {'A': 0, 'G': 0, 'C': 0, 'U': 0}
+
+        # if current in base_nucleotides:
+        #     cost_current[current] = cost_current[current] + 1
+        # else:
+        #     cost_current = {k: cost_current[k] + ambiguity_vectors[current][k] for k in set(cost_current)}
+        #
+        #
+        # if next_char in base_nucleotides:
+        #     for k in cost_current.keys():
+        #         vec[base_nucleotides.index(k)][base_nucleotides.index(next_char)] += cost_current[k]
+        #
+        # else:
+        #     dest_costs = ambiguity_vectors[next_char]
+        #     for k in cost_current.keys():
+        #         for j in cost_current.keys():
+        #             actual_cost = cost_current[k] * dest_costs[j]
+        #             vec[base_nucleotides.index(k)][base_nucleotides.index(j)] += actual_cost
 
     return vec
 
-# TODO: adapt to DB instead of only 2 sequences
-def convert_to_idf_vector(seq1, seq2):
+
+def convert_to_idf_vector(seq1, collection, doc_count=0):
     vec = np.zeros((15,15))
 
     set1 = set()
@@ -148,9 +155,14 @@ def convert_to_idf_vector(seq1, seq2):
         sequence = current + next_char
         set1.add(sequence)
 
+    count = doc_count if doc_count != 0 else collection.count_documents({})
+
     for pair in set1:
-        cost = compare_pair_to_seq(pair, seq2)
-        idf = 0 if cost == 0 else math.log(2/cost, 10)
+        cost = 0
+        for record in collection.find({}):
+            cost = cost + compare_pair_to_seq(pair, record)
+
+        idf = 0 if cost == 0 else math.log(count/cost, 10)
         index1 = nucleotides.index(pair[0])
         index2 = nucleotides.index(pair[1])
         vec[index1][index2] = idf
@@ -158,9 +170,14 @@ def convert_to_idf_vector(seq1, seq2):
     return vec
 
 
+def create_tf_idf_vector(seq, collection, is_document=False):
+    tf = convert_to_tf_vector(seq) if not is_document else pickle.loads(seq['tf'])
+    idf = convert_to_idf_vector(seq, collection) if not is_document else pickle.loads(seq['idf'])
+    return np.dot(tf, idf)
 
 
-def compare_pair_to_seq(pair, seq):
+def compare_pair_to_seq(pair, record):
+    seq = record['sequence']
     if pair in seq:
         return 1
     else:
@@ -309,18 +326,56 @@ def perform_methods(a, b, do_cosine=False, do_pearson=False, do_euclidian_distan
     if do_dice_dist: jobs.append(dice_dist)
     return create_and_start_threads(jobs, a, b)
 
-a = 'AACG'
-b = 'NAN'
 
-a_vec = convert_to_idf_vector(a, b)
-b_vec = convert_to_idf_vector(b, a)
+def wf_score(seq1, seq2):
+    dp = wagnerFisher(seq1, seq2)
+    cost = dp[len(dp)-1][len(dp[0])-1].value
+    return 1/(1+cost)
 
-print('a',a_vec)
-print('b',b_vec)
 
-print('starting threads')
+def search_collection(query, vector_type,  collection, method):
+    # step 1: convert query to idf/tf/tf-idf/set/multiset
+    if method == wf_score:
+        vector1 = query
+        convert_method = lambda x: x['sequence']
+    elif method == set_intersection_similarity or method == set_dice_similarity or method == set_jaccard_similarity:
+        vector1 = convert_to_set(query)
+        convert_method = lambda x: convert_to_set(x['sequence'])
+    elif method == multi_intersection_similarity or method == multi_dice_similarity or method == multi_jaccard_similarity:
+        vector1 = convert_to_multi_set(query)
+        convert_method = lambda x: convert_to_multi_set(x['sequence'])
+    else:
+        if vector_type == 'tf':
+            vector1 = convert_to_tf_vector(query)
+            convert_method = lambda x: pickle.loads(x['tf'])
+        elif vector_type == 'idf':
+            vector1 = convert_to_idf_vector(query, collection)
+            convert_method = lambda x: pickle.loads(x['idf'])
+        else:
+            vector1 = create_tf_idf_vector(query, collection)
+            convert_method = lambda x: create_tf_idf_vector(x, collection, True)
+            pass
 
-if __name__ == '__main__':
-    thread_test = create_and_start_threads([cosine, pearson, euclidian_distance, manhattan_distance, tanimoto_distance, dice_dist], a_vec, b_vec)
-    print('BONJOUR')
-    print(thread_test)
+    # objectIds = []
+    scores = []
+    # step 2: calculate similarity with collection vectors
+    for doc in collection.find({}):
+        scores.append((doc['sequence'], method(vector1, convert_method(doc))))
+
+    return scores
+
+# a = 'AACG'
+# b = 'NAN'
+#
+# a_vec = convert_to_idf_vector(a, b)
+# b_vec = convert_to_idf_vector(b, a)
+#
+# print('a',a_vec)
+# print('b',b_vec)
+#
+# print('starting threads')
+#
+# if __name__ == '__main__':
+#     thread_test = create_and_start_threads([cosine, pearson, euclidian_distance, manhattan_distance, tanimoto_distance, dice_dist], a_vec, b_vec)
+#     print('BONJOUR')
+#     print(thread_test)
