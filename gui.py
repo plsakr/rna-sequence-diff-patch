@@ -1,19 +1,22 @@
 import sys
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import (QApplication, QPushButton, QLineEdit, QTableWidget, QComboBox, QTableWidgetItem,
+import time
+
+from PySide2.QtUiTools import QUiLoader
+from PySide2.QtWidgets import (QApplication, QPushButton, QLineEdit, QTableWidget, QComboBox, QTableWidgetItem,
                                QTabWidget, QLabel, QListWidget, QAbstractItemView, QFileDialog, QRadioButton,
                                QMessageBox, QCheckBox)
 
-from PySide6.QtCore import QFile, QIODevice, Qt
-from PySide6.QtGui import QColor
+from PySide2.QtCore import QFile, QIODevice, Qt
+from PySide2.QtGui import QColor
 from StringEditDistance import wagnerFisher, create_paths, generate_es, patching, generate_rev_es, reload_user_costs, user_costs
 import json
 from widgets import CheckableComboBox
+from widgets.mplwidget import MplWidget
 
 from IRMethods import (cosine, pearson, euclidian_distance, manhattan_distance, tanimoto_distance, dice_dist,
                        set_intersection_similarity, set_dice_similarity, set_jaccard_similarity,
                        multi_intersection_similarity, multi_dice_similarity, multi_jaccard_similarity, convert_to_set,
-                       convert_to_tf_vector, convert_to_idf_vector, convert_to_multi_set, create_and_start_threads)
+                       convert_to_tf_vector, convert_to_idf_vector, convert_to_multi_set, create_and_start_threads, wf_score)
 
 import fa_import
 from import_xml import import_xml
@@ -48,6 +51,7 @@ force_refresh_table = False
 
 edit_scripts = []
 
+similarity_results = {}
 
 def validate_sequence(seq):
     global nucleotides
@@ -280,14 +284,52 @@ def on_es_list_changed(table: QTableWidget, btn_to_patch: QPushButton, btn_expor
 
 def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_sim: QLabel, es_list: QListWidget, label_t: QLabel,
                  label_chosen_es: QLabel, line_edit_patch: QLineEdit, button_start_patch: QPushButton, lbl_comp: QLabel,
-                 lbl_comp_title: QLabel, list_choose_es: QListWidget):
-    global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table
+                 lbl_comp_title: QLabel, list_choose_es: QListWidget, graph1: MplWidget, graph2: MplWidget):
+    global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table, similarity_results
 
     def on_change(ind):
-        global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table
+        global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table, similarity_results
         # print('CURRENT TAB', ind)
 
         if ind == 1:
+            keys = list(similarity_results.keys())
+
+            time_keys_methods = list(filter(lambda x: '_time' in x, keys))
+            time_keys_conversions = list(filter(lambda x: 'pre_' in x, keys))
+            # bins = len(time_keys)
+            methods = []
+            timing = []
+            for k in time_keys_methods:
+                full_method = k[:-5]
+                ind = full_method.rfind('_')
+                method_name = full_method[0:ind] if ind > 0 else full_method
+                methods.append(method_name)
+                timing.append(similarity_results[k])
+
+            methods_conv = []
+            timing_conv = []
+            for k in time_keys_conversions:
+                full_method = k[4:]
+                print(full_method)
+                method_name = full_method
+                methods_conv.append(method_name)
+                timing_conv.append(similarity_results[k])
+
+            graph1.canvas.ax.cla()
+            graph1.canvas.ax.bar(methods, timing, color='g', zorder=3, width=0.3)
+            graph1.canvas.ax.set_xticklabels(methods, rotation=45, rotation_mode="anchor", ha="right")
+            graph1.canvas.ax.set(title='Similarity Measure', xlabel='Method', ylabel='Time (ms)')
+            graph1.canvas.ax.grid()
+            graph1.canvas.draw()
+
+            graph2.canvas.ax.cla()
+            graph2.canvas.ax.bar(methods_conv, timing_conv, color='g', zorder=3, width=0.3)
+            graph2.canvas.ax.set_xticklabels(methods_conv, rotation=45, rotation_mode="anchor", ha="right")
+            graph2.canvas.ax.set(title='Preprocessing Steps', xlabel='Method', ylabel='Time (ms)')
+            graph2.canvas.ax.grid()
+            graph2.canvas.draw()
+
+        if ind == 2:
             if force_refresh_table:
                 force_refresh_table = False
                 label_t.setText(f'Cost table of transforming "{sequence1}" into "{sequence2}":')
@@ -362,10 +404,10 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
 
 def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, set_methods: CheckableComboBox,
                        multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox):
-    global sequence1, sequence2, force_refresh_table
+    global sequence1, sequence2, force_refresh_table, similarity_results
 
     def on_click():
-        global sequence1, sequence2, force_refresh_table
+        global sequence1, sequence2, force_refresh_table, similarity_results
         sequence1 = eText1.text()
         sequence2 = eText2.text()
         if len(sequence1) == 0 or len(sequence2) == 0 or not(validate_sequence(sequence1)) or not(validate_sequence(sequence2)):
@@ -387,44 +429,67 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, s
             wanted_multiset = multiset_methods.check_items()
             wanted_vector = vector_methods.check_items()
 
+
             if should_calculate_wf or len(wanted_sets)+len(wanted_multiset)+len(wanted_vector) > 0:
+                similarity_results = {}
+                job_list = []
+
+                if should_calculate_wf:
+                    start = time.time()
+                    similarity_results['wf'] = wf_score(sequence1, sequence2)  # TODO: User COSTS
+                    end = time.time()
+                    similarity_results['wf_time'] = (end-start)*1000
+                    similarity_results['pre_wf'] = 0
 
                 if len(wanted_sets) > 0:
                     job_list = []
+                    start = time.time()
                     seq1_set = convert_to_set(sequence1)
                     seq2_set = convert_to_set(sequence2)
+                    end = time.time()
                     for j in wanted_sets:
                         job_list.append(set_methods_names[set_selections.index(j)])
 
-                    result_set = create_and_start_threads(job_list, seq1_set, seq2_set)
-                    print(result_set)
+                    similarity_results.update(create_and_start_threads(job_list, seq1_set, seq2_set))
+                    similarity_results['pre_set'] = (end-start)*1000
+                    # print(result_set)
 
                 if len(wanted_vector) > 0:
                     job_list = []
+                    start = time.time()
                     seq1_vec = convert_to_tf_vector(sequence1)
                     seq2_vec = convert_to_tf_vector(sequence2)
+                    end = time.time()
                     for j in wanted_vector:
                         job_list.append(vector_methods_names[vector_selections.index(j)])
 
-                    result_vec = create_and_start_threads(job_list, seq1_vec, seq2_vec)
-                    print(result_vec)
+                    similarity_results.update(create_and_start_threads(job_list, seq1_vec, seq2_vec))
+                    similarity_results['pre_vector'] = (end-start)*1000
+
+                    # print(result_vec)
 
                 if len(wanted_multiset) > 0:
                     job_list = []
+                    start = time.time()
                     seq1_vec = convert_to_multi_set(sequence1)
                     seq2_vec = convert_to_multi_set(sequence2)
+                    end = time.time()
                     for j in wanted_multiset:
                         job_list.append(multiset_methods_names[multiset_selections.index(j)])
 
-                    result_multi = create_and_start_threads(job_list, seq1_vec, seq2_vec)
-                    print(result_multi)
+                    similarity_results.update(create_and_start_threads(job_list, seq1_vec, seq2_vec))
+                    similarity_results['pre_multiset'] = (end-start)*1000
+                    # print(result_multi)
 
 
                 print(wanted_sets)
                 print(wanted_multiset)
                 print(wanted_vector)
+                print(similarity_results)
                 force_refresh_table = True
                 tabs.setTabEnabled(1, True)
+                if should_calculate_wf:
+                    tabs.setTabEnabled(2, True)
                 tabs.setCurrentIndex(1)
 
     return on_click
@@ -553,6 +618,7 @@ if __name__ == "__main__":
         sys.exit(-1)
     loader = QUiLoader()
     loader.registerCustomWidget(CheckableComboBox)
+    loader.registerCustomWidget(MplWidget)
     window = loader.load(ui_file)
     ui_file.close()
 
@@ -563,6 +629,7 @@ if __name__ == "__main__":
         sys.exit(-1)
 
     load_table = QUiLoader()
+    # table_window = uic.loadUi(ui_table_fil)
     table_window = loader.load(ui_table_fil)
     ui_table_fil.close()
 
@@ -591,6 +658,7 @@ if __name__ == "__main__":
 
     tab_widget = window.findChild(QTabWidget, 'tabWidget')
     tab_widget.setTabEnabled(1, False)
+    tab_widget.setTabEnabled(2, False)
     # main window variables:
     # tab 1:
     next_button = window.findChild(QPushButton, 'button_input_next')
@@ -625,7 +693,11 @@ if __name__ == "__main__":
     list_dataset_xml = xml_window.findChild(QListWidget, 'list_data')
     btn_import_data_xml = xml_window.findChild(QPushButton, 'btn_import_data')
 
-    # tab 2:
+    # tab 2: performance
+    graph1 = window.findChild(MplWidget, 'graph1')
+    graph2 = window.findChild(MplWidget, 'graph2')
+
+    # tab 2: ED
     ed_matrix_table = window.findChild(QTableWidget, 'ed_matrix_table')
     label_cost = window.findChild(QLabel, 'label_ec')
     label_sim = window.findChild(QLabel, 'label_sim')
@@ -692,7 +764,7 @@ if __name__ == "__main__":
     tab_widget.currentChanged.connect(
         onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title,
                      label_es_chosen, line_edit_patch_sequence,
-                     btn_patch, label_comparison, label_comparison_title, list_patch_choose))
+                     btn_patch, label_comparison, label_comparison_title, list_patch_choose, graph1, graph2))
     edit_cost_ins.textEdited.connect(on_insert_cost_change('insert'))
     edit_cost_del.textEdited.connect(on_insert_cost_change('delete'))
     combo_from.currentIndexChanged.connect(on_combo_changed(cost_table))

@@ -1,5 +1,6 @@
 import math
 import pickle
+import time
 
 import numpy as np
 from multiprocessing import Process, Manager
@@ -145,7 +146,7 @@ def convert_to_tf_vector(seq):
     return vec
 
 
-def convert_to_idf_vector(seq1, collection, doc_count=0):
+def convert_to_idf_vector(seq1, collection=None, list_of_docs=None, doc_count=0):
     vec = np.zeros((15,15))
 
     set1 = set()
@@ -155,11 +156,12 @@ def convert_to_idf_vector(seq1, collection, doc_count=0):
         sequence = current + next_char
         set1.add(sequence)
 
-    count = doc_count if doc_count != 0 else collection.count_documents({})
+    count = doc_count if doc_count != 0 else len(list_of_docs) if list_of_docs is not None else collection.count_documents({})
 
     for pair in set1:
         cost = 0
-        for record in collection.find({}):
+        my_range = list_of_docs if list_of_docs is not None else collection.find({})
+        for record in my_range:
             cost = cost + compare_pair_to_seq(pair, record)
 
         idf = 0 if cost == 0 else math.log(count/cost, 10)
@@ -296,6 +298,15 @@ def dice_dist(a, b, return_dict = None):
         return_dict['dice_dist'] = num/den
 
 
+def time_method(method):
+    def wrapper(a, b, return_dict):
+        start = time.time()
+        method(a, b, return_dict)
+        end = time.time()
+        return_dict[method.__name__ + '_time'] = (end-start)*1000
+    return wrapper
+
+
 def create_and_start_threads(methods_to_execute, a, b):
     result_objects = []
     m = Manager()
@@ -306,9 +317,10 @@ def create_and_start_threads(methods_to_execute, a, b):
 
     for m in methods_to_execute:
         print('ana hon v2')
-        p = Process(target=m, args=(a, b, return_dict))
+        p = Process(target=time_method(m), args=(a, b, return_dict))
         jobs.append(p)
         p.start()
+
 
     for j in jobs:
         j.join()
