@@ -1,5 +1,6 @@
 import sys
 import time
+from operator import itemgetter
 
 from PySide2.QtUiTools import QUiLoader
 from PySide2.QtWidgets import (QApplication, QPushButton, QLineEdit, QTableWidget, QComboBox, QTableWidgetItem,
@@ -16,10 +17,12 @@ from widgets.mplwidget import MplWidget
 from IRMethods import (cosine, pearson, euclidian_distance, manhattan_distance, tanimoto_distance, dice_dist,
                        set_intersection_similarity, set_dice_similarity, set_jaccard_similarity,
                        multi_intersection_similarity, multi_dice_similarity, multi_jaccard_similarity, convert_to_set,
-                       convert_to_tf_vector, convert_to_idf_vector, convert_to_multi_set, create_and_start_threads, wf_score)
+                       convert_to_tf_vector, convert_to_idf_vector, create_tf_idf_vector,
+                       convert_to_multi_set, create_and_start_threads, wf_score, create_search_threads, search_collection)
 
 import fa_import
 from import_xml import import_xml
+from pymongo import MongoClient
 
 
 ui_file_name = "mainwindow.ui"
@@ -52,6 +55,8 @@ force_refresh_table = False
 edit_scripts = []
 
 similarity_results = {}
+
+collection = MongoClient().rna_db.sequences
 
 def validate_sequence(seq):
     global nucleotides
@@ -284,7 +289,7 @@ def on_es_list_changed(table: QTableWidget, btn_to_patch: QPushButton, btn_expor
 
 def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_sim: QLabel, es_list: QListWidget, label_t: QLabel,
                  label_chosen_es: QLabel, line_edit_patch: QLineEdit, button_start_patch: QPushButton, lbl_comp: QLabel,
-                 lbl_comp_title: QLabel, list_choose_es: QListWidget, graph1: MplWidget, graph2: MplWidget):
+                 lbl_comp_title: QLabel, list_choose_es: QListWidget, graph1: MplWidget, graph2: MplWidget, ir_results: QLabel):
     global sequence1, sequence2, dp, paths, es, edit_scripts, force_refresh_table, similarity_results
 
     def on_change(ind):
@@ -323,11 +328,19 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
             graph1.canvas.draw()
 
             graph2.canvas.ax.cla()
-            graph2.canvas.ax.bar(methods_conv, timing_conv, color='g', zorder=3, width=0.3)
+            graph2.canvas.ax.bar(methods_conv, timing_conv, color='g', zorder=3, width=0.2)
             graph2.canvas.ax.set_xticklabels(methods_conv, rotation=45, rotation_mode="anchor", ha="right")
             graph2.canvas.ax.set(title='Preprocessing Steps', xlabel='Method', ylabel='Time (ms)')
             graph2.canvas.ax.grid()
             graph2.canvas.draw()
+
+            results_keys = list(filter(lambda x: '_time' not in x and 'pre_' not in x, keys))
+            final_label = '<html>'
+            for k in results_keys:
+                final_label = final_label + '<b>' + k + '</b>: \t' + str(round(similarity_results[k], 3)) + '<br/>'
+            final_label = final_label + '</html>'
+            ir_results_label.setStyleSheet('line-height:20')
+            ir_results_label.setText(final_label)
 
         if ind == 2:
             if force_refresh_table:
@@ -403,7 +416,7 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
 
 
 def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, set_methods: CheckableComboBox,
-                       multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox):
+                       multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox, combo_tf_idf: QComboBox):
     global sequence1, sequence2, force_refresh_table, similarity_results
 
     def on_click():
@@ -457,8 +470,16 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, s
                 if len(wanted_vector) > 0:
                     job_list = []
                     start = time.time()
-                    seq1_vec = convert_to_tf_vector(sequence1)
-                    seq2_vec = convert_to_tf_vector(sequence2)
+                    wanted_type = combo_tf_idf.currentText().lower()
+                    if wanted_type == 'tf':
+                        seq1_vec = convert_to_tf_vector(sequence1)
+                        seq2_vec = convert_to_tf_vector(sequence2)
+                    elif wanted_type == 'idf':
+                        seq1_vec = convert_to_idf_vector(sequence1, list_of_docs=[sequence1, sequence2])
+                        seq2_vec = convert_to_idf_vector(sequence2, list_of_docs=[sequence1, sequence2])
+                    else:
+                        seq1_vec = create_tf_idf_vector(sequence1, list_of_docs=[sequence1, sequence2])
+                        seq2_vec = create_tf_idf_vector(sequence2, list_of_docs=[sequence1, sequence2])
                     end = time.time()
                     for j in wanted_vector:
                         job_list.append(vector_methods_names[vector_selections.index(j)])
@@ -494,6 +515,49 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, s
 
     return on_click
 
+
+def on_click_search(set_methods: CheckableComboBox, multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox,
+                    search_combo_tf_idf: QComboBox, query_edit: QLineEdit, k_edit: QLineEdit, results_list: QListWidget):
+    global collection
+
+    def on_click():
+        global collection
+        # should_calculate_wf = enable_wf.isChecked()
+        query = query_edit.text()
+        wanted_sets = set_methods.check_items()
+        wanted_multiset = multiset_methods.check_items()
+        wanted_vector = vector_methods.check_items()
+        wanted_type = search_combo_tf_idf.currentText().lower()
+        k = int(k_edit.text()) if k_edit.text().isdigit() else -1
+
+        if len(query)>0 and len(wanted_sets)+len(wanted_multiset)+len(wanted_vector) > 0 and k > 0:
+            job_list = []
+
+            if len(wanted_sets) > 0:
+                for j in wanted_sets:
+                    job_list.append(set_methods_names[set_selections.index(j)])
+
+            if len(wanted_vector) > 0:
+
+                for j in wanted_vector:
+                    job_list.append(vector_methods_names[vector_selections.index(j)])
+
+            if len(wanted_multiset) > 0:
+                for j in wanted_multiset:
+                    job_list.append(multiset_methods_names[multiset_selections.index(j)])
+
+            final_results_search, wf_results = create_search_threads(job_list, query, wanted_type, collection)
+
+            sorted_results = sorted(final_results_search, key=itemgetter(1), reverse=True)
+            results_list.clear()
+
+            for i in range(k):
+                results_list.addItem(sorted_results[i][0])
+
+            print(final_results_search)
+            print(wf_results)
+
+    return on_click
 
 def on_export_to_file():
     global es
@@ -675,6 +739,7 @@ if __name__ == "__main__":
     set_combo = window.findChild(CheckableComboBox, 'set_combo')
     multiset_combo = window.findChild(CheckableComboBox, 'multiset_combo')
     vector_combo = window.findChild(CheckableComboBox, 'vector_combo')
+    combo_tf_idf = window.findChild(QComboBox, 'combo_tf_idf')
 
     edit_cost_ins = window.findChild(QLineEdit, 'edit_cost_insert')
     edit_cost_del = window.findChild(QLineEdit, 'edit_cost_delete')
@@ -696,6 +761,7 @@ if __name__ == "__main__":
     # tab 2: performance
     graph1 = window.findChild(MplWidget, 'graph1')
     graph2 = window.findChild(MplWidget, 'graph2')
+    ir_results_label = window.findChild(QLabel, 'ir_results_label')
 
     # tab 2: ED
     ed_matrix_table = window.findChild(QTableWidget, 'ed_matrix_table')
@@ -707,6 +773,17 @@ if __name__ == "__main__":
     btn_export_patching = window.findChild(QPushButton, 'btn_export')
     label_comparison_title = window.findChild(QLabel, 'label_comparison_title')
     label_comparison = window.findChild(QLabel, 'label_comparison')
+
+    # search tab:
+    edit_search_query = window.findChild(QLineEdit, 'edit_search_query')
+    combo_tf_idf_search = window.findChild(QComboBox, 'combo_tf_idf_search')
+    multiset_combo_search = window.findChild(CheckableComboBox, 'multiset_combo_search')
+    set_combo_search = window.findChild(CheckableComboBox, 'set_combo_search')
+    vector_combo_search = window.findChild(CheckableComboBox, 'vector_combo_search')
+    edit_k = window.findChild(QLineEdit, 'edit_k')
+    button_start_search = window.findChild(QPushButton, 'button_start_search')
+    list_search_results = window.findChild(QListWidget, 'list_search_results')
+
 
     # tab 3:
     btn_import = window.findChild(QPushButton, 'btn_import')
@@ -726,16 +803,17 @@ if __name__ == "__main__":
     combo_selections = ['Please Select Nucleotide...', *nucleotides]
     combo_from.insertItems(0, combo_selections)
 
+    combo_tf_idf_selections = ['TF', 'IDF', 'TF-IDF']
+    combo_tf_idf.addItems(combo_tf_idf_selections)
 
     set_combo.addItems(set_selections)
-
-
-
     multiset_combo.addItems(multiset_selections)
-
-
     vector_combo.addItems(vector_selections)
 
+    combo_tf_idf_search.addItems(combo_tf_idf_selections)
+    multiset_combo_search.addItems(multiset_selections[1:])
+    set_combo_search.addItems(set_selections[1:])
+    vector_combo_search.addItems(vector_selections)
 
     index = 0
     for n in nucleotides:
@@ -760,15 +838,19 @@ if __name__ == "__main__":
 
     edit_seq1.textEdited.connect(onSequence1Changed(edit_seq1))
     edit_seq2.textEdited.connect(onSequence2Changed(edit_seq2))
-    next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget, wagner_checkbox, set_combo, multiset_combo, vector_combo))
+    next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget, wagner_checkbox, set_combo, multiset_combo, vector_combo, combo_tf_idf))
     tab_widget.currentChanged.connect(
         onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title,
                      label_es_chosen, line_edit_patch_sequence,
-                     btn_patch, label_comparison, label_comparison_title, list_patch_choose, graph1, graph2))
+                     btn_patch, label_comparison, label_comparison_title, list_patch_choose, graph1, graph2, ir_results_label))
     edit_cost_ins.textEdited.connect(on_insert_cost_change('insert'))
     edit_cost_del.textEdited.connect(on_insert_cost_change('delete'))
     combo_from.currentIndexChanged.connect(on_combo_changed(cost_table))
     cost_table.cellChanged.connect(on_table_edited(combo_from, cost_table))
+
+    # search tab:
+    button_start_search.clicked.connect(on_click_search(set_combo_search, multiset_combo_search, vector_combo_search,
+                                                        combo_tf_idf_search, edit_search_query, edit_k, list_search_results))
 
     # tab 2:
     es_list.currentRowChanged.connect(

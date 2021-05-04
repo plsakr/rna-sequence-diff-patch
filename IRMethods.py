@@ -124,24 +124,24 @@ def convert_to_tf_vector(seq):
         next_char = seq[i + 1]
 
         vec[nucleotides.index(current)][nucleotides.index(next_char)] += 1
-        # cost_current = {'A': 0, 'G': 0, 'C': 0, 'U': 0}
+        cost_current = {'A': 0, 'G': 0, 'C': 0, 'U': 0}
 
-        # if current in base_nucleotides:
-        #     cost_current[current] = cost_current[current] + 1
-        # else:
-        #     cost_current = {k: cost_current[k] + ambiguity_vectors[current][k] for k in set(cost_current)}
-        #
-        #
-        # if next_char in base_nucleotides:
-        #     for k in cost_current.keys():
-        #         vec[base_nucleotides.index(k)][base_nucleotides.index(next_char)] += cost_current[k]
-        #
-        # else:
-        #     dest_costs = ambiguity_vectors[next_char]
-        #     for k in cost_current.keys():
-        #         for j in cost_current.keys():
-        #             actual_cost = cost_current[k] * dest_costs[j]
-        #             vec[base_nucleotides.index(k)][base_nucleotides.index(j)] += actual_cost
+        if current in base_nucleotides:
+            cost_current[current] = cost_current[current] + 1
+        else:
+            cost_current = {k: cost_current[k] + ambiguity_vectors[current][k] for k in set(cost_current)}
+
+
+        if next_char in base_nucleotides and current not in base_nucleotides:
+            for k in cost_current.keys():
+                vec[nucleotides.index(k)][nucleotides.index(next_char)] += cost_current[k]
+
+        elif next_char not in base_nucleotides:
+            dest_costs = ambiguity_vectors[next_char]
+            for k in cost_current.keys():
+                for j in cost_current.keys():
+                    actual_cost = cost_current[k] * dest_costs[j]
+                    vec[nucleotides.index(k)][nucleotides.index(j)] += actual_cost
 
     return vec
 
@@ -162,7 +162,7 @@ def convert_to_idf_vector(seq1, collection=None, list_of_docs=None, doc_count=0)
         cost = 0
         my_range = list_of_docs if list_of_docs is not None else collection.find({})
         for record in my_range:
-            cost = cost + compare_pair_to_seq(pair, record)
+            cost = cost + compare_pair_to_seq(pair, record, is_document=collection is not None)
 
         idf = 0 if cost == 0 else math.log(count/cost, 10)
         index1 = nucleotides.index(pair[0])
@@ -172,14 +172,14 @@ def convert_to_idf_vector(seq1, collection=None, list_of_docs=None, doc_count=0)
     return vec
 
 
-def create_tf_idf_vector(seq, collection, is_document=False):
+def create_tf_idf_vector(seq, collection=None, list_of_docs=None, doc_count=0, is_document=False):
     tf = convert_to_tf_vector(seq) if not is_document else pickle.loads(seq['tf'])
-    idf = convert_to_idf_vector(seq, collection) if not is_document else pickle.loads(seq['idf'])
+    idf = convert_to_idf_vector(seq, collection, list_of_docs, doc_count) if not is_document else pickle.loads(seq['idf'])
     return np.dot(tf, idf)
 
 
-def compare_pair_to_seq(pair, record):
-    seq = record['sequence']
+def compare_pair_to_seq(pair, record, is_document=True):
+    seq = record['sequence'] if is_document else record
     if pair in seq:
         return 1
     else:
@@ -313,10 +313,10 @@ def create_and_start_threads(methods_to_execute, a, b):
     return_dict = m.dict()
     jobs = []
 
-    print('ma fetet ba3d')
+    # print('ma fetet ba3d')
 
     for m in methods_to_execute:
-        print('ana hon v2')
+        # print('ana hon v2')
         p = Process(target=time_method(m), args=(a, b, return_dict))
         jobs.append(p)
         p.start()
@@ -345,7 +345,7 @@ def wf_score(seq1, seq2):
     return 1/(1+cost)
 
 
-def search_collection(query, vector_type,  collection, method):
+def search_collection(query, vector_type,  collection, method, return_dict=None):
     # step 1: convert query to idf/tf/tf-idf/set/multiset
     if method == wf_score:
         vector1 = query
@@ -374,7 +374,45 @@ def search_collection(query, vector_type,  collection, method):
     for doc in collection.find({}):
         scores.append((doc['sequence'], method(vector1, convert_method(doc))))
 
-    return scores
+    if return_dict is not None:
+        return_dict[method.__name__] = scores
+    else:
+        return scores
+
+
+def create_search_threads(methods_to_execute, query, vector_type,  collection):
+    m = Manager()
+    return_dict = m.dict()
+    wagner_dict = m.dict()
+    jobs = []
+
+    # print('ma fetet ba3d')
+
+    for m in methods_to_execute:
+        # print('ana hon v2')
+        p = Process(target=search_collection, args=(query, vector_type, collection, m, return_dict))
+        jobs.append(p)
+        p.start()
+
+    p = Process(target=search_collection, args=(query, vector_type, collection, wf_score, wagner_dict))
+    jobs.append(p)
+    p.start()
+
+    for j in jobs:
+        j.join()
+
+    final_results = []
+    for i in range(collection.count({})):
+        sequence = ''
+        score = 0.
+        for k in return_dict.keys():
+            if sequence == '':
+                sequence = return_dict[k][i][0]
+            score += return_dict[k][i][1]
+        score = score/len(return_dict.keys())
+        final_results.append((sequence, score))
+
+    return final_results, wagner_dict['wf_score']
 
 # a = 'AACG'
 # b = 'NAN'
