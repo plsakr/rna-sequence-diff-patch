@@ -417,7 +417,8 @@ def onTabChanged(rButton: QRadioButton, table: QTableWidget, l_cost: QLabel, l_s
 
 
 def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, set_methods: CheckableComboBox,
-                       multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox, combo_tf_idf: QComboBox):
+                       multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox, combo_tf_idf: QComboBox,
+                       userCost: QRadioButton):
     global sequence1, sequence2, force_refresh_table, similarity_results
 
     def on_click():
@@ -450,7 +451,7 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, s
 
                 if should_calculate_wf:
                     start = time.time()
-                    similarity_results['wf'] = wf_score(sequence1, sequence2)  # TODO: User COSTS
+                    similarity_results['wf'] = wf_score(sequence1, sequence2, userCost.isChecked())  # TODO: User COSTS
                     end = time.time()
                     similarity_results['wf_time'] = (end-start)*1000
                     similarity_results['pre_wf'] = 0
@@ -904,7 +905,7 @@ if __name__ == "__main__":
 
     edit_seq1.textEdited.connect(onSequence1Changed(edit_seq1))
     edit_seq2.textEdited.connect(onSequence2Changed(edit_seq2))
-    next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget, wagner_checkbox, set_combo, multiset_combo, vector_combo, combo_tf_idf))
+    next_button.clicked.connect(onInputNextClicked(edit_seq1, edit_seq2, tab_widget, wagner_checkbox, set_combo, multiset_combo, vector_combo, combo_tf_idf, radio_cost_user))
     tab_widget.currentChanged.connect(
         onTabChanged(radio_cost_user, ed_matrix_table, label_cost, label_sim, es_list, label_title,
                      label_es_chosen, line_edit_patch_sequence,

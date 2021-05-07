@@ -339,8 +339,8 @@ def perform_methods(a, b, do_cosine=False, do_pearson=False, do_euclidian_distan
     return create_and_start_threads(jobs, a, b)
 
 
-def wf_score(seq1, seq2):
-    dp = wagnerFisher(seq1, seq2)
+def wf_score(seq1, seq2, user_cost=False):
+    dp = wagnerFisher(seq1, seq2, user_cost)
     cost = dp[len(dp)-1][len(dp[0])-1].value
     return 1/(1+cost)
 
