@@ -345,7 +345,7 @@ def wf_score(seq1, seq2):
     return 1/(1+cost)
 
 
-def search_collection(query, vector_type,  collection, method, return_dict=None):
+def search_collection(query, vector_type,  collection, method, return_dict=None, callback=None):
     # step 1: convert query to idf/tf/tf-idf/set/multiset
     if method == wf_score:
         vector1 = query
@@ -365,7 +365,7 @@ def search_collection(query, vector_type,  collection, method, return_dict=None)
             convert_method = lambda x: pickle.loads(x['idf'])
         else:
             vector1 = create_tf_idf_vector(query, collection)
-            convert_method = lambda x: create_tf_idf_vector(x, collection, True)
+            convert_method = lambda x: create_tf_idf_vector(x, collection, is_document=True)
             pass
 
     # objectIds = []
@@ -374,13 +374,15 @@ def search_collection(query, vector_type,  collection, method, return_dict=None)
     for doc in collection.find({}):
         scores.append((doc['sequence'], method(vector1, convert_method(doc))))
 
-    if return_dict is not None:
+    if callback is not None:
+        callback(scores)
+    elif return_dict is not None:
         return_dict[method.__name__] = scores
     else:
         return scores
 
 
-def create_search_threads(methods_to_execute, query, vector_type,  collection):
+def create_search_threads(methods_to_execute, query, vector_type,  collection, on_search_done=None, on_wf_done=None):
     m = Manager()
     return_dict = m.dict()
     wagner_dict = m.dict()
@@ -395,13 +397,16 @@ def create_search_threads(methods_to_execute, query, vector_type,  collection):
         p.start()
 
     p = Process(target=search_collection, args=(query, vector_type, collection, wf_score, wagner_dict))
-    jobs.append(p)
+    # jobs.append(p)
     p.start()
 
+    s = time.time()
     for j in jobs:
         j.join()
+    print(str(time.time() - s))
 
     final_results = []
+
     for i in range(collection.count({})):
         sequence = ''
         score = 0.
@@ -409,10 +414,23 @@ def create_search_threads(methods_to_execute, query, vector_type,  collection):
             if sequence == '':
                 sequence = return_dict[k][i][0]
             score += return_dict[k][i][1]
+
         score = score/len(return_dict.keys())
         final_results.append((sequence, score))
+    # scores = np.asarray(return_dict.values())
+    # scores = scores.flatten()
+    # scores = dict(scores)
+    # scores_values = np.average(scores.values(), axis=1)
+    # final_scores = zip(scores.keys(), scores_values)
+    print('score time: ' + str(time.time() - s))
 
-    return final_results, wagner_dict['wf_score']
+    if on_search_done is not None:
+        on_search_done(final_results)
+    p.join()
+    on_wf_done(wagner_dict['wf_score'])
+    # print(str(time.time() - s))
+
+    # return final_results, wagner_dict['wf_score']
 
 # a = 'AACG'
 # b = 'NAN'

@@ -1,3 +1,4 @@
+import math
 import sys
 import time
 from operator import itemgetter
@@ -515,22 +516,36 @@ def onInputNextClicked(eText1, eText2, tabs: QTabWidget, enable_wf: QCheckBox, s
 
     return on_click
 
+def calc_prec_rec_f(nbr_returned, nbr_relevant, relevant_returned):
+    TP = relevant_returned
+    FP = nbr_returned - relevant_returned
+    FN = nbr_relevant - relevant_returned
+
+    prec = TP / (TP + FP)
+    rec = TP / (TP + FN)
+    f_value = 2*prec*rec/(prec+rec) if (prec+rec) > 0 else 0
+
+    return prec, rec, f_value
 
 def on_click_search(set_methods: CheckableComboBox, multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox,
-                    search_combo_tf_idf: QComboBox, query_edit: QLineEdit, k_edit: QLineEdit, results_list: QListWidget):
+                    search_combo_tf_idf: QComboBox, query_edit: QLineEdit, k_edit: QLineEdit, results_list: QListWidget,
+                    prec: QLabel, rec: QLabel, f: QLabel, nbr_relevant: QLineEdit, threshold_range: QLineEdit):
     global collection
 
     def on_click():
         global collection
+        c = collection.count({})
         # should_calculate_wf = enable_wf.isChecked()
         query = query_edit.text()
         wanted_sets = set_methods.check_items()
         wanted_multiset = multiset_methods.check_items()
         wanted_vector = vector_methods.check_items()
         wanted_type = search_combo_tf_idf.currentText().lower()
-        k = int(k_edit.text()) if k_edit.text().isdigit() else -1
+        k = int(k_edit.text()) if k_edit.text().isdigit() else c
+        threshold = float(threshold_range.text()) if threshold_range.text().isdecimal() else 0.
+        wf_rel = int(nbr_relevant.text()) if nbr_relevant.text().isdigit() else 5
 
-        if len(query)>0 and len(wanted_sets)+len(wanted_multiset)+len(wanted_vector) > 0 and k > 0:
+        if len(query) > 0 and len(wanted_sets)+len(wanted_multiset)+len(wanted_vector) > 0:
             job_list = []
 
             if len(wanted_sets) > 0:
@@ -546,18 +561,62 @@ def on_click_search(set_methods: CheckableComboBox, multiset_methods: CheckableC
                 for j in wanted_multiset:
                     job_list.append(multiset_methods_names[multiset_selections.index(j)])
 
-            final_results_search, wf_results = create_search_threads(job_list, query, wanted_type, collection)
+            s = time.time()
+            sorted_results_final = []
 
-            sorted_results = sorted(final_results_search, key=itemgetter(1), reverse=True)
-            results_list.clear()
+            def show_results(final_results):
+                print('showing results at ' + str(time.time() - s))
+                sorted_results = sorted(final_results, key=itemgetter(1), reverse=True)
+                print('k is: ', k)
+                results_list.clear()
+                for i in range(k):
+                    # print(threshold)
+                    # print(sorted_results[i][1])
+                    # print(threshold)
+                    if sorted_results[i][1] > threshold:
+                        sorted_results_final.append(sorted_results[i][0])
+                        results_list.addItem(sorted_results[i][0])
+                print(sorted_results_final)
 
-            for i in range(k):
-                results_list.addItem(sorted_results[i][0])
+            def wf_done(wf_results):
+                print('showing performance at ' + str(time.time() - s))
+                # print(query)
+                # print(sorted_results_final, len(sorted_results_final))
+                sorted_wf = sorted(wf_results, key=itemgetter(1), reverse=True)
+                print('wf_sorted', wf_rel, sorted_wf[0: wf_rel])
+                count_relevant_ret = 0
+                for i in sorted_results_final:
+                    if i in [x[0] for x in sorted_wf[0: wf_rel]] or query in i:
+                        count_relevant_ret += 1
+                        # print('SHOWING COLOR')
+                        results_list.item(sorted_results_final.index(i)).setBackground(QColor('#83fc9e'))
 
-            print(final_results_search)
-            print(wf_results)
+                p, r, f_val = calc_prec_rec_f(len(sorted_results_final), wf_rel, count_relevant_ret)
+                # print(p,r,f_val)
+                prec.setText('Precision: ' + str(round(p, 3)))
+                rec.setText('Recall: ' + str(round(r, 3)))
+                f.setText('F-Value: ' + str(round(f_val,3)))
+
+            create_search_threads(job_list, query, wanted_type, collection, show_results, wf_done)
+
+
+            # show_results(final_results_search)
+
+            # print(final_results_search)
+            # print(wf_results)
 
     return on_click
+
+
+def on_goto_ed(q: QLineEdit, search_list: QListWidget, seq1: QLineEdit, seq2: QLineEdit, tabs: QTabWidget):
+
+    def on_click():
+        seq1.setText(q.text())
+        seq2.setText(search_list.selectedItems()[0].text())
+        tabs.setCurrentIndex(0)
+
+    return on_click
+
 
 def on_export_to_file():
     global es
@@ -784,6 +843,13 @@ if __name__ == "__main__":
     button_start_search = window.findChild(QPushButton, 'button_start_search')
     list_search_results = window.findChild(QListWidget, 'list_search_results')
 
+    label_precision = window.findChild(QLabel, 'label_precision')
+    label_recall = window.findChild(QLabel, 'label_recall')
+    label_f_value = window.findChild(QLabel, 'label_f_value')
+    edit_nbr_relevant = window.findChild(QLineEdit, 'edit_nbr_relevant')
+    edit_threshold = window.findChild(QLineEdit, 'edit_threshold')
+    btn_search_ed = window.findChild(QPushButton, 'btn_search_ed')
+
 
     # tab 3:
     btn_import = window.findChild(QPushButton, 'btn_import')
@@ -850,7 +916,11 @@ if __name__ == "__main__":
 
     # search tab:
     button_start_search.clicked.connect(on_click_search(set_combo_search, multiset_combo_search, vector_combo_search,
-                                                        combo_tf_idf_search, edit_search_query, edit_k, list_search_results))
+                                                        combo_tf_idf_search, edit_search_query, edit_k, list_search_results,
+                                                        label_precision,label_recall,label_f_value, edit_nbr_relevant,
+                                                        edit_threshold))
+
+    btn_search_ed.clicked.connect(on_goto_ed(edit_search_query, list_search_results, edit_seq1, edit_seq2, tab_widget))
 
     # tab 2:
     es_list.currentRowChanged.connect(
