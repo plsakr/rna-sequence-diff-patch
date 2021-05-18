@@ -530,13 +530,13 @@ def calc_prec_rec_f(nbr_returned, nbr_relevant, relevant_returned):
 
 def on_click_search(set_methods: CheckableComboBox, multiset_methods: CheckableComboBox, vector_methods: CheckableComboBox,
                     search_combo_tf_idf: QComboBox, query_edit: QLineEdit, k_edit: QLineEdit, results_list: QListWidget,
-                    prec: QLabel, rec: QLabel, f: QLabel, nbr_relevant: QLineEdit, threshold_range: QLineEdit):
+                    prec: QLabel, rec: QLabel, f: QLabel, nbr_relevant: QLineEdit, threshold_range: QLineEdit, enable_wf: QComboBox):
     global collection
 
     def on_click():
         global collection
         c = collection.count({})
-        # should_calculate_wf = enable_wf.isChecked()
+        should_calculate_wf = enable_wf.isChecked()
         query = query_edit.text()
         wanted_sets = set_methods.check_items()
         wanted_multiset = multiset_methods.check_items()
@@ -546,8 +546,11 @@ def on_click_search(set_methods: CheckableComboBox, multiset_methods: CheckableC
         threshold = float(threshold_range.text()) if threshold_range.text().isdecimal() else 0.
         wf_rel = int(nbr_relevant.text()) if nbr_relevant.text().isdigit() else 5
 
-        if len(query) > 0 and len(wanted_sets)+len(wanted_multiset)+len(wanted_vector) > 0:
+        if len(query) > 0 and (len(wanted_sets)+len(wanted_multiset)+len(wanted_vector) > 0 or should_calculate_wf):
             job_list = []
+
+            if should_calculate_wf:
+                job_list.append(wf_score)
 
             if len(wanted_sets) > 0:
                 for j in wanted_sets:
@@ -577,6 +580,10 @@ def on_click_search(set_methods: CheckableComboBox, multiset_methods: CheckableC
                     if sorted_results[i][1] > threshold:
                         sorted_results_final.append(sorted_results[i][0])
                         results_list.addItem(sorted_results[i][0])
+
+                prec.setText('')
+                rec.setText('')
+                f.setText('')
                 print(sorted_results_final)
 
             def wf_done(wf_results):
@@ -843,6 +850,7 @@ if __name__ == "__main__":
     edit_k = window.findChild(QLineEdit, 'edit_k')
     button_start_search = window.findChild(QPushButton, 'button_start_search')
     list_search_results = window.findChild(QListWidget, 'list_search_results')
+    check_wf_search = window.findChild(QCheckBox, 'check_wf_search')
 
     label_precision = window.findChild(QLabel, 'label_precision')
     label_recall = window.findChild(QLabel, 'label_recall')
@@ -919,7 +927,7 @@ if __name__ == "__main__":
     button_start_search.clicked.connect(on_click_search(set_combo_search, multiset_combo_search, vector_combo_search,
                                                         combo_tf_idf_search, edit_search_query, edit_k, list_search_results,
                                                         label_precision,label_recall,label_f_value, edit_nbr_relevant,
-                                                        edit_threshold))
+                                                        edit_threshold, check_wf_search))
 
     btn_search_ed.clicked.connect(on_goto_ed(edit_search_query, list_search_results, edit_seq1, edit_seq2, tab_widget))
 

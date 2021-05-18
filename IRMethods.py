@@ -4,6 +4,9 @@ import time
 
 import numpy as np
 from multiprocessing import Process, Manager
+
+import pandas as pd
+
 from StringEditDistance import wagnerFisher
 from operator import itemgetter
 import os
@@ -396,38 +399,52 @@ def create_search_threads(methods_to_execute, query, vector_type,  collection, o
         jobs.append(p)
         p.start()
 
-    p = Process(target=search_collection, args=(query, vector_type, collection, wf_score, wagner_dict))
-    # jobs.append(p)
-    p.start()
+
 
     s = time.time()
     for j in jobs:
         j.join()
     print(str(time.time() - s))
 
-    final_results = []
+    # final_results = []
 
-    for i in range(collection.count({})):
-        sequence = ''
-        score = 0.
-        for k in return_dict.keys():
-            if sequence == '':
-                sequence = return_dict[k][i][0]
-            score += return_dict[k][i][1]
+    final_pd = pd.DataFrame()
 
-        score = score/len(return_dict.keys())
-        final_results.append((sequence, score))
+    for k in return_dict.keys():
+        final_pd = final_pd.append([{x[0]: x[1] for x in return_dict[k]}], ignore_index=True)
+    # print(final_pd)
+    avg = final_pd.mean(axis=0)
+    # print(avg.size, avg)
+    # print(type(avg))
+    # print('score time: ' + str(time.time() - s))
+
+    # for i in range(collection.count({})):
+    #     sequence = ''
+    #     score = 0.
+    #     for k in return_dict.keys():
+    #         if sequence == '':
+    #             sequence = return_dict[k][i][0]
+    #         score += return_dict[k][i][1]
+    #
+    #     score = score/len(return_dict.keys())
+    #     final_results.append([sequence, score])
     # scores = np.asarray(return_dict.values())
     # scores = scores.flatten()
     # scores = dict(scores)
     # scores_values = np.average(scores.values(), axis=1)
     # final_scores = zip(scores.keys(), scores_values)
+    final_results = list(zip(avg.index, avg))
     print('score time: ' + str(time.time() - s))
 
     if on_search_done is not None:
         on_search_done(final_results)
-    p.join()
-    on_wf_done(wagner_dict['wf_score'])
+
+    if wf_score in methods_to_execute:
+        p = Process(target=search_collection, args=(query, vector_type, collection, wf_score, wagner_dict))
+        # jobs.append(p)
+        p.start()
+        p.join()
+        on_wf_done(wagner_dict['wf_score'])
     # print(str(time.time() - s))
 
     # return final_results, wagner_dict['wf_score']

@@ -850,10 +850,27 @@ QTabBar::tab:!selected {
            <string>Search Measures</string>
           </property>
           <layout class="QGridLayout" name="gridLayout_15">
-           <item row="0" column="2">
-            <widget class="QComboBox" name="combo_tf_idf_search"/>
+           <item row="1" column="3">
+            <widget class="CheckableComboBox" name="vector_combo_search">
+             <property name="placeholderText">
+              <string>Vector Based Measures</string>
+             </property>
+            </widget>
            </item>
            <item row="1" column="1">
+            <widget class="CheckableComboBox" name="set_combo_search">
+             <property name="currentText">
+              <string/>
+             </property>
+             <property name="placeholderText">
+              <string>Set Based Measures</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QComboBox" name="combo_tf_idf_search"/>
+           </item>
+           <item row="1" column="2">
             <widget class="CheckableComboBox" name="multiset_combo_search">
              <property name="currentIndex">
               <number>-1</number>
@@ -863,20 +880,10 @@ QTabBar::tab:!selected {
              </property>
             </widget>
            </item>
-           <item row="1" column="2">
-            <widget class="CheckableComboBox" name="vector_combo_search">
-             <property name="placeholderText">
-              <string>Vector Based Measures</string>
-             </property>
-            </widget>
-           </item>
            <item row="1" column="0">
-            <widget class="CheckableComboBox" name="set_combo_search">
-             <property name="currentText">
-              <string/>
-             </property>
-             <property name="placeholderText">
-              <string>Set Based Measures</string>
+            <widget class="QCheckBox" name="check_wf_search">
+             <property name="text">
+              <string>Wagner Fischer ED</string>
              </property>
             </widget>
            </item>
