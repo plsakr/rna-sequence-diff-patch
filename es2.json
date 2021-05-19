@@ -1,0 +1,20 @@
+{
+    "seq1": "AAAAAAAAAAAGUGCUACGACAUUUGGGUGU",
+    "seq2": "AAAAAAAAAAAGUGCUACGACAUUUGGGGGU",
+    "es": [
+        [
+            [
+                "update",
+                [
+                    1,
+                    "U"
+                ],
+                [
+                    28,
+                    "G"
+                ]
+            ]
+        ],
+
+    ]
+}

@@ -31,7 +31,7 @@ start = time.time()
 def update_idfs():
     for record in collection.find({}):
         idf_vector = convert_to_idf_vector(record['sequence'], collection)
-        collection.update_one({'_id': record['_id']}, {'$set': {'idf': bson.Binary(pickle.dumps(idf_vector))}})
+        #collection.update_one({'_id': record['_id']}, {'$set': {'idf': bson.Binary(pickle.dumps(idf_vector))}})
 
     print('db idfs updated')
 
@@ -46,7 +46,7 @@ with open('./data/ocu.fa') as f:
                 #Select the sequence at the current id/title, decrement the counter
                 #and reset the current Sequence (clear it)
                 data[currentTitle] = currentSequence
-                # collection.insert_one({'sequence': currentSequence, 'tf': bson.Binary(pickle.dumps(convert_to_tf_vector(currentSequence)))})
+                collection.insert_one({'sequence': currentSequence, 'tf': bson.Binary(pickle.dumps(convert_to_tf_vector(currentSequence)))})
 
                 imported -= 1
                 currentSequence = ''
@@ -62,7 +62,7 @@ with open('./data/ocu.fa') as f:
             currentSequence = currentSequence.replace('X', 'N')
 
 #end is used to mark the time when we finished processing this file
-# update_idfs()
+#update_idfs()
 end = time.time()
 
 #Printing the time it took to finish processing
