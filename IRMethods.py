@@ -262,7 +262,7 @@ def possibilities(nucleotide):
         output = []
         # get the corresponding vector that represents this ambiguous nucleotide's possible representations
         complete_vector = ambiguity_vectors[nucleotide]
-        for k in complete_vector.keys()
+        for k in complete_vector.keys():
             # if the probability of having a certain base nucleotide is not 0, append it to the output array
             if complete_vector[k] != 0:
                 output.append(k)
